@@ -6,6 +6,7 @@ Uso:  auditar.py obra     <dir_obra>            [--json] [--rapido]
       auditar.py plano    <fichero.avi>         [--json]
       auditar.py contacto <video> [salida.jpg]  hoja de contactos para MIRARLO
       auditar.py audio    <video>               ruido real, separado del volumen
+      auditar.py habla    <video>               cobertura de voz: que no se calle
 
 Reutiliza las medidas de evaluar2.py (criterio anti-trampa del autor, intacto)
 y añade lo que faltaba: medir EL ESLABON, no solo el plano.
@@ -146,6 +147,52 @@ def audio(video):
         res["nota_ruido"] = round(max(0.0, min(10.0, (-22 - hf) / 10 * 10)), 1)
     return res
 
+def habla(video, umbral_db=None, min_silencio=0.8):
+    """Cobertura de voz: que fraccion del clip tiene habla.
+
+    Es la comprobacion narrativa que ninguna metrica de imagen puede hacer. El
+    riesgo de una toma larga es que el modelo se quede sin dialogo a la mitad:
+    la imagen seguiria impecable y la pieza estaria rota. Se detectan los
+    silencios y se reporta lo que queda.
+
+    Tambien delata el caso contrario: si el habla ocupa el 100% sin una sola
+    pausa, el modelo esta atropellando el texto."""
+    d = E.dur(video)
+    # Umbral RELATIVO al propio clip. Uno absoluto (-40 dB) da falsos positivos
+    # en una mezcla mas alta: un clip a -15 dB nunca cruza -40 y sale "100% de
+    # voz, cero pausas" aunque tenga silencios perfectamente audibles. Es el
+    # mismo fallo que tenia la medida del suelo de ruido.
+    if umbral_db is None:
+        a = audio(video)
+        base = a.get("rms_global_dB")
+        umbral_db = round(base - 22, 1) if base is not None else -40
+    r = subprocess.run(["ffmpeg", "-nostdin", "-v", "info", "-i", video, "-vn",
+                        "-af", f"silencedetect=noise={umbral_db}dB:d={min_silencio}",
+                        "-f", "null", "-"], capture_output=True, text=True)
+    silencios, ini = [], None
+    for l in r.stderr.splitlines():
+        if "silence_start:" in l:
+            try: ini = float(l.split("silence_start:")[1].strip().split()[0])
+            except (ValueError, IndexError): ini = None
+        elif "silence_end:" in l and ini is not None:
+            try:
+                fin = float(l.split("silence_end:")[1].strip().split()[0])
+                silencios.append((ini, fin)); ini = None
+            except (ValueError, IndexError): ini = None
+    if ini is not None: silencios.append((ini, d))
+    mudo = sum(b - a for a, b in silencios)
+    cob = 100 * (d - mudo) / d if d else 0
+    # El silencio mas largo importa mas que el total: 20 s callado en mitad de
+    # una pieza de 60 es una rotura, aunque la cobertura media salga en 66%.
+    peor = max((b - a for a, b in silencios), default=0.0)
+    return {"duracion_s": round(d, 2), "umbral_dB": umbral_db,
+            "cobertura_voz_%": round(cob, 1),
+            "silencio_total_s": round(mudo, 2), "silencio_mayor_s": round(peor, 2),
+            "silencios": [(round(a, 2), round(b, 2)) for a, b in silencios[:12]],
+            "veredicto": ("MUDO"     if cob < 40 else
+                          "CORTADO"  if peor > 3.0 else
+                          "ATROPELLADO" if cob > 97 else "OK")}
+
 def contacto(video, salida, n=9):
     """Hoja de contactos: n fotogramas repartidos, en rejilla, con el segundo
     rotulado. Existe porque evaluar2 mide degradacion y no belleza: un video
@@ -203,6 +250,13 @@ if __name__ == "__main__":
     if len(sys.argv) < 3: print(__doc__); sys.exit(2)
     modo, arg = sys.argv[1], sys.argv[2]
     js = "--json" in sys.argv
+    if modo == "habla":
+        h = habla(arg)
+        if js: print(json.dumps(h, indent=1)); sys.exit(0)
+        print(f"  {os.path.basename(arg)}  {h['duracion_s']}s · voz {h['cobertura_voz_%']}% · "
+              f"silencio mayor {h['silencio_mayor_s']}s · umbral {h['umbral_dB']}dB"
+              f"  ->  {h['veredicto']}")
+        sys.exit(0 if h["veredicto"] == "OK" else 1)
     if modo == "audio":
         a = audio(arg)
         if js: print(json.dumps(a, indent=1)); sys.exit(0)
