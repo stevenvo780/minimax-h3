@@ -68,3 +68,35 @@ vram_informe() {
       "$i" "$t" "$l" "$h" "$(vram_arg "$i")"
   done
 }
+
+# ── Techo consciente del tamaño del trabajo ────────────────────────────────
+# Con --stream-layers, --max-vram dice cuanto MODELO se queda en la tarjeta.
+# El buffer de computo necesita el resto, y ese buffer crece con frames x pixeles.
+# Por eso pedir MAS puede hacer que NO quepa: paso de verdad, 685 frames a
+# 736x416 fallaron con cuda0=9 ("alloc compute buffer failed") mientras que el
+# material del propio proyecto, 345 frames a la misma resolucion, funcionaba con
+# cuda0=2.
+#
+# Constante calibrada con las corridas medidas:
+#   512x288 x  685f  cabe con 8 GB de modelo  -> al buffer le quedaban ~4.5 GB
+#   512x288 x 1020f  NO cabe con 8
+#   736x416 x  685f  NO cabe con 9
+# => el buffer pide del orden de 4.5e-5 MiB por (pixel x frame).
+VRAM_MIB_POR_PXFRAME=${VRAM_MIB_POR_PXFRAME:-0.000045}
+
+# vram_arg_trabajo <idx> <frames> <W> <H>
+# Igual que vram_arg pero reservando antes lo que se va a llevar el buffer.
+vram_arg_trabajo() {
+  local idx=$1 frames=$2 w=$3 h=$4
+  local libre techo buffer modelo g
+  libre=$(vram_libre "$idx") || { echo "cuda${idx}=2"; return 0; }
+  techo=$(vram_techo "$idx") || { echo "cuda${idx}=2"; return 0; }
+  buffer=$(awk -v f="$frames" -v w="$w" -v h="$h" -v k="$VRAM_MIB_POR_PXFRAME" \
+           'BEGIN{printf "%d", f*w*h*k}')
+  modelo=$(( techo - buffer ))
+  g=$(( modelo / 1024 ))
+  # Nunca por debajo de 1 GB ni por encima del techo normal: con 1 GB el modelo
+  # va casi todo en streaming, que es lento pero cabe siempre.
+  [ "$g" -lt 1 ] && g=1
+  echo "cuda${idx}=${g}"
+}
