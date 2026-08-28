@@ -7,6 +7,7 @@ Uso:  auditar.py obra     <dir_obra>            [--json] [--rapido]
       auditar.py contacto <video> [salida.jpg]  hoja de contactos para MIRARLO
       auditar.py audio    <video>               ruido real, separado del volumen
       auditar.py habla    <video>               cobertura de voz: que no se calle
+      auditar.py fondo    <video>               cuan negro y liso esta el fondo
 
 Reutiliza las medidas de evaluar2.py (criterio anti-trampa del autor, intacto)
 y añade lo que faltaba: medir EL ESLABON, no solo el plano.
@@ -193,6 +194,50 @@ def habla(video, umbral_db=None, min_silencio=0.8):
                           "CORTADO"  if peor > 3.0 else
                           "ATROPELLADO" if cob > 97 else "OK")}
 
+def fondo(video, muestras=5):
+    """Cuanto de negro y de LISO esta el fondo.
+
+    Sirve para comprobar la adherencia del prompt cuando el guion pide un fondo
+    vacio. Medido: pedirlo por negacion ("no objects, no furniture, no walls")
+    mete muebles y paredes, porque nombrar algo lo invoca aunque sea para
+    prohibirlo. Describirlo en positivo ("a plain matte black backdrop") es lo
+    que hay que comparar contra esto.
+
+    Se miden las dos franjas laterales, que es donde vive el fondo en un primer
+    plano. No basta el brillo medio: un sillon oscuro tiene media baja y se ve
+    igual. Lo que lo delata es la DESVIACION (hay estructura) y el pico."""
+    d = E.dur(video)
+    T = tempfile.mkdtemp(prefix="fondo-")
+    try:
+        vals = []
+        for i in range(muestras):
+            t = d * (i + 0.5) / muestras
+            f = os.path.join(T, f"{i}.png")
+            subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", str(t),
+                            "-i", video, "-frames:v", "1", "-update", "1", f],
+                           capture_output=True)
+            if not os.path.exists(f): continue
+            for crop in ("iw*0.18:ih:0:0", "iw*0.18:ih:iw*0.82:0"):
+                r = E.run(["ffmpeg", "-v", "error", "-i", f, "-vf",
+                           f"crop={crop},format=gray", "-f", "rawvideo", "-"])
+                if not r.stdout: continue
+                b = list(r.stdout); n = len(b); m = sum(b) / n
+                sd = (sum((x - m) ** 2 for x in b) / n) ** 0.5
+                vals.append((m, sd, max(b)))
+        if not vals: return {"error": "no pude medir el fondo"}
+        med  = sum(v[0] for v in vals) / len(vals)
+        desv = sum(v[1] for v in vals) / len(vals)
+        pico = max(v[2] for v in vals)
+        # Umbrales de partida: un ciclorama negro real da media <8, desviacion <6
+        # y pico <40. Con estructura visible la desviacion se dispara.
+        return {"brillo_medio": round(med, 1), "desviacion": round(desv, 1),
+                "pico": pico,
+                "veredicto": ("NEGRO"      if desv < 6 and med < 8 else
+                              "CASI NEGRO" if desv < 12 else
+                              "CON OBJETOS")}
+    finally:
+        subprocess.run(["rm", "-rf", T])
+
 def contacto(video, salida, n=9):
     """Hoja de contactos: n fotogramas repartidos, en rejilla, con el segundo
     rotulado. Existe porque evaluar2 mide degradacion y no belleza: un video
@@ -250,6 +295,13 @@ if __name__ == "__main__":
     if len(sys.argv) < 3: print(__doc__); sys.exit(2)
     modo, arg = sys.argv[1], sys.argv[2]
     js = "--json" in sys.argv
+    if modo == "fondo":
+        f = fondo(arg)
+        if js: print(json.dumps(f, indent=1)); sys.exit(0)
+        if "error" in f: print(f"  {f['error']}"); sys.exit(1)
+        print(f"  {os.path.basename(arg)}  fondo: brillo {f['brillo_medio']} · "
+              f"desviacion {f['desviacion']} · pico {f['pico']}  ->  {f['veredicto']}")
+        sys.exit(0)
     if modo == "habla":
         h = habla(arg)
         if js: print(json.dumps(h, indent=1)); sys.exit(0)
