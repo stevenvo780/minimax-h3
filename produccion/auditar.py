@@ -37,16 +37,22 @@ def bordes(png):
 def entropia(png):
     return E.entropia_limpia(png)
 
-# Umbrales del veredicto. Salen de la serie medida arriba (+3.2/+8.5/+13.5/+21.1%)
-# y son el PRIMER sitio a recalibrar cuando haya mas datos.
-UMBRAL_OK, UMBRAL_LIMPIAR, UMBRAL_REANCLAR = 5.0, 15.0, 25.0
+# Umbrales del veredicto, de la serie medida (+3.2/+8.5/+13.5/+21.1%).
+#
+# NO hay veredicto "LIMPIAR". Se probo y se descarto MIRANDO la imagen: para
+# bajar el exceso de forma apreciable hace falta un desenfoque de sigma>0.5, y
+# a partir de 0.35 desaparecen el pelo de barba y el poro de piel. Con el sigma
+# maximo sano el exceso solo baja ~1.6 puntos de 21: despreciable. Igualar la
+# energia de borde contra otra imagen no deshace el realce, se lleva el detalle.
+# Las palancas que SI funcionan no tocan los pixeles: menos eslabones, y
+# reanclar a un frame pristino.
+UMBRAL_OK, UMBRAL_REANCLAR = 5.0, 20.0
 NOTA_MINIMA_PLANO = 85.0
 
 def veredicto(exceso_pct, nota_plano):
     if nota_plano is not None and nota_plano < NOTA_MINIMA_PLANO: return "REGENERAR"
-    if exceso_pct <= UMBRAL_OK:        return "OK"
-    if exceso_pct <= UMBRAL_LIMPIAR:   return "LIMPIAR"
-    if exceso_pct <= UMBRAL_REANCLAR:  return "REANCLAR"
+    if exceso_pct <= UMBRAL_OK:       return "OK"
+    if exceso_pct <= UMBRAL_REANCLAR: return "REANCLAR"
     return "REGENERAR"
 
 def auditar_obra(dir_obra, con_notas=True):

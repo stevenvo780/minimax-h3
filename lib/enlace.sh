@@ -9,11 +9,17 @@
 #      last01 +3.2%   last02 +8.5%   last03 +13.5%   last04 +21.1%
 #  y con el, la nota del montaje cae de 95 (un plano) a 68.8 (cuatro).
 #
-#  La correccion, medida: un gblur devuelve el frame a la referencia.
-#      sigma 0.5 -> +17.1%   0.9 -> +10.0%   1.3 -> +2.8%
-#  Aqui NO se usa esa recta ajustada: se busca el sigma por biseccion contra la
-#  referencia real de cada obra, que es mas robusto si cambia la resolucion,
-#  el prompt o el modelo.
+#  LIMITE MEDIDO MIRANDO LA IMAGEN, no solo el numero. Escalera de sigma sobre
+#  last04 (+21.1%), recorte del ojo y la barba:
+#      0.20 -> +20.8%  detalle intacto
+#      0.35 -> +19.5%  ULTIMO PUNTO SANO
+#      0.50 -> +17.2%  la barba empieza a fundirse
+#      0.80 -> +12.0%  masa borrosa
+#      1.47 ->  -0.1%  papilla: clava el numero y destruye la imagen
+#  Igualar la energia de borde contra OTRA imagen distinta no es deshacer el
+#  realce: se lleva por delante el detalle legitimo. Por eso SIGMA_MAX=0.35 y
+#  la funcion se NIEGA a corregir mas, devolviendo 2 para que quien llama sepa
+#  que ahi la respuesta es reanclar, no desenfocar.
 #
 #  Uso:  . lib/enlace.sh
 #        enlace_bordes  <png>
@@ -42,8 +48,11 @@ _enlace_filtro() {
 
 # Busca por biseccion el sigma que deja los bordes dentro de la tolerancia.
 # Devuelve 0 si el frame ya esta limpio: nunca emborrona de mas.
+# Tope duro: por encima de esto el desenfoque destruye detalle real (ver cabecera).
+ENLACE_SIGMA_MAX=${ENLACE_SIGMA_MAX:-0.35}
+
 enlace_sigma() {
-  local png=$1 ref=$2 tol=${3:-3}
+  local png=$1 ref=$2 tol=${3:-5}
   local b0; b0=$(enlace_bordes "$png")
   awk -v b="$b0" -v r="$ref" -v t="$tol" 'BEGIN{exit !(r>0 && 100*(b-r)/r <= t)}' && { echo "0"; return 0; }
   local lo=0 hi=3 mid tmp bm i
@@ -63,7 +72,7 @@ enlace_sigma() {
 # cromatica es el artefacto visible y desenfocar croma es imperceptible al ojo,
 # mientras que pasarse con la luma acartona en la direccion contraria (blando).
 enlace_limpiar() {
-  local in=$1 out=$2 ref=$3 tol=${4:-3}
+  local in=$1 out=$2 ref=$3 tol=${4:-5}
   local s b0 b1
   b0=$(enlace_bordes "$in")
   s=$(enlace_sigma "$in" "$ref" "$tol")
@@ -71,6 +80,14 @@ enlace_limpiar() {
     cp "$in" "$out"
     echo "  enlace: bordes $b0 ya dentro del ${tol}% de $ref, no se toca" >&2
     return 0
+  fi
+  # Si hace falta mas desenfoque del sano, NO se aplica: se avisa y se devuelve 2.
+  # Desenfocar hasta clavar el numero deja la cara sin poro ni pelo de barba.
+  if awk -v s="$s" -v m="$ENLACE_SIGMA_MAX" 'BEGIN{exit !(s>m)}'; then
+    cp "$in" "$out"
+    echo "  enlace: harian falta sigma $s (>$ENLACE_SIGMA_MAX) para bajar bordes $b0 a $ref." >&2
+    echo "          NO se aplica: destruiria detalle real. Aqui toca REANCLAR." >&2
+    return 2
   fi
   ffmpeg -nostdin -v error -y -i "$in" -vf "$(_enlace_filtro "$s")" "$out" 2>/dev/null || return 1
   b1=$(enlace_bordes "$out")
