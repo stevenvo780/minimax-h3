@@ -139,6 +139,90 @@ Archiva en `~/Vídeos/archivo-minimax/` todo menos la pieza más reciente. No bo
 toca ficheros con la firma de nombre de esta pipeline: los vídeos personales que estén en
 la misma carpeta no se mueven.
 
+## Lo que degrada la imagen, medido
+
+El sintoma es "el video se va acartonando a cada segundo". Tiene firma numerica
+y una causa concreta, y no es la que parece.
+
+**No es el modelo cansandose con la duracion.** Un plano solo, alargandolo, no
+se degrada nada:
+
+| frames | duracion | TOTAL | gradacion | estructura |
+|---|---|---|---|---|
+| 56  | 2,3 s  | 91,5 | 25/25 | 20/20 |
+| 107 | 4,5 s  | 90,0 | 25/25 | 20/20 |
+| 175 | 7,3 s  | 89,0 | 25/25 | 20/20 |
+| 260 | 10,8 s | 90,0 | 25/25 | 20/20 |
+| 345 | 14,4 s | 90,0 | 25/25 | 20/20 |
+
+**Es el eslabon.** Encadenando los mismos cuatro planos, la nota se desploma, y
+con un acantilado en el tercer enlace:
+
+| planos | eslabones | TOTAL | estructura | croma |
+|---|---|---|---|---|
+| 1 | 0 | 95,0 | 20,0 | 10,0 |
+| 2 | 1 | 89,0 | 14,1 | 10,0 |
+| 3 | 2 | 87,7 | 15,0 | 10,0 |
+| 4 | 3 | **68,7** | **7,4** | **3,4** |
+
+**Por que.** El ultimo frame de un plano se reinyecta como `--init-img` del
+siguiente. Ese frame ya lleva el realce que el modelo aplico, y el modelo realza
+encima: fotocopiar una fotocopia. La energia de borde sobre el primer frame del
+primer plano crece monotona — +3,2 % → +8,5 % → +13,5 % → +21,1 %.
+
+Y hay una segunda causa que se suma: la **deriva**. Los mismos dos eslabones
+puntuan 87,7 con material fresco y 81,0 con material ya derivado, aunque el
+ultimo plano por si solo saque 92,9. Reanclar ataca esta; menos eslabones ataca
+la otra.
+
+**Conclusion operativa: el mejor video largo es el que no tiene ningun eslabon.**
+Ver `guiones/exis-toma-unica.guion`.
+
+### Una palanca que se probo y se descarto
+
+Desenfocar el frame de enlace para devolverle la energia de borde de la
+referencia **sube la nota y estropea la imagen**. Escalera medida sobre un frame
+con +21,1 % de exceso, mirando el recorte del ojo y la barba:
+
+| sigma | exceso | detalle |
+|---|---|---|
+| 0,20 | +20,8 % | intacto |
+| **0,35** | +19,5 % | **ultimo punto sano** |
+| 0,50 | +17,2 % | la barba empieza a fundirse |
+| 0,80 | +12,0 % | masa borrosa |
+| 1,47 | −0,1 % | clava el numero, destruye la imagen |
+
+Igualar la energia de borde contra *otra imagen distinta* no deshace el realce:
+se lleva el detalle legitimo. `lib/enlace.sh` tiene un tope duro en 0,35 y se
+niega a pasar de ahi. Es justo la trampa por la que existe `evaluar2.py`.
+
+### Limite conocido del medidor
+
+`evaluar2.py` mide **degradacion, no belleza**. Un video uniformemente mediocre
+puntua alto. Un clip de 345 frames saco 90,0 con los cinco bloques visuales
+perfectos, y al mirarlo estaba oscuro, con el encuadre ido a plano medio y una
+ventana clara que el guion prohibia. La nota es condicion necesaria, no
+suficiente: hay que mirar el video.
+
+## Hardware
+
+### Presupuesto de VRAM
+
+`lib/vram.sh` calcula el techo sobre la VRAM **libre en ese instante**, no sobre
+el total: el escritorio ocupa ~3,4 GB de la 5070 Ti y un techo sobre el total se
+come el margen del usuario y provoca OOM — fue lo que tumbo p05 y p10. La
+sobrecorreccion tampoco valia: los scripts quedaron en `cuda0=2`, 2 GB de 16.
+
+### Ejecutar en un contenedor con otro userland
+
+`lib/compat.sh` resuelve dos cosas sin tocar el binario original: localiza CUDA
+en el disco (esta en los venv de otros proyectos) y copia `sd-cli` quitandole la
+exigencia de una version de glibc mas nueva que la del sistema. De glibc 2.43
+solo necesitaba `atan2f` y `sqrtf`, que existen desde hace decadas.
+
+Ojo con la RAM: los modelos completos piden ~42 GB. Con el modelo **podado**
+bajan a 33 GB y entran en un contenedor de 24 GB + 24 GB de swap.
+
 ## Notas de operación
 
 - **Nunca edites un script mientras se está ejecutando.** Bash relee el fichero por offset de
