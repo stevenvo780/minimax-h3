@@ -1,0 +1,87 @@
+#!/bin/bash
+# ═══════════════════════════════════════════════════════════════════════════
+#  COMÚN — configuración y llamadas compartidas de la pipeline MiniMax-H3
+#
+#  Se sourcea desde cualquier script del proyecto:
+#      . "$(dirname "${BASH_SOURCE[0]}")/lib/comun.sh"        # desde la raíz
+#      . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"     # desde produccion/
+#
+#  MD (raíz del proyecto) se deduce de dónde está ESTE fichero, así el proyecto
+#  funciona esté donde esté montado. Se puede forzar con MD=... en el entorno.
+# ═══════════════════════════════════════════════════════════════════════════
+
+MD=${MD:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+DEST=${DEST:-$HOME/Vídeos}
+
+SDCLI=$MD/bin/sd-cli
+MODELO_DIFF=$MD/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf
+MODELO_VAE=$MD/vae/minimax_h3_video_vae_fp16.safetensors
+MODELO_AVAE=$MD/vae/minimax_h3_audio_vae_fp32.safetensors
+MODELO_LLM=$MD/text_encoders/qwen3vl_32b_minimax_h3-Q4_K_M.gguf
+UPSCALER=$MD/upscalers/RealESRGAN_x4plus.pth
+
+# ── Parámetros de generación ───────────────────────────────────────────────
+# Lo que el usuario puso en el ENTORNO manda siempre. Se guarda aquí antes de
+# aplicar ningún default, para que `params_defecto` pueda respetarlo.
+_W_ENV=${W:-}; _H_ENV=${H:-}; _FRAMES_ENV=${FRAMES:-}; _STEPS_ENV=${STEPS:-}
+
+W=${W:-1376}; H=${H:-768}; FRAMES=${FRAMES:-107}; STEPS=${STEPS:-20}
+FPS=${FPS:-24}; CFG=${CFG:-1.0}
+BACKEND=${BACKEND:-"diffusion=CUDA0,te=cpu,vae=CUDA0"}
+PARAMS_BACKEND=${PARAMS_BACKEND:-"diffusion=cpu"}
+MAXVRAM=${MAXVRAM:-"cuda0=2"}
+
+# params_defecto <W> <H> <FRAMES> <STEPS>
+#   Fija los valores propios de UN script sin pisar lo que venga del entorno.
+#   Llámalo DESPUÉS de sourcear este fichero. Existe porque escribir
+#   `W=${W:-864}` después del source NO funciona: aquí W ya vale 1376 y el
+#   `:-` no se dispara — el script correría a otra resolución en silencio.
+params_defecto() {
+  W=${_W_ENV:-$1}; H=${_H_ENV:-$2}; FRAMES=${_FRAMES_ENV:-$3}; STEPS=${_STEPS_ENV:-$4}
+}
+
+# ── ffmpeg SIEMPRE con -nostdin ────────────────────────────────────────────
+# Sin -nostdin, ffmpeg lee del stdin del bucle `while read` que lo invoca y se
+# come líneas del guion: planos que desaparecen sin un solo mensaje de error.
+# Usar ff/ffp en lugar de ffmpeg/ffprobe en TODO el proyecto.
+ff()  { ffmpeg -nostdin "$@"; }
+ffp() { ffprobe "$@"; }
+
+# ── sd-cli: una sola definición de la llamada de generación ────────────────
+# Uso:  sd_vid_gen "<prompt>" "<salida.mp4>" [args extra: -s N, --init-img f...]
+# OJO: sd-cli escribe en "<salida>.avi", no en "<salida>". Usar sd_salida().
+sd_vid_gen() {
+  local PROMPT=$1 OUT=$2; shift 2
+  "$SDCLI" -M vid_gen \
+    --diffusion-model "$MODELO_DIFF" \
+    --vae            "$MODELO_VAE" \
+    --audio-vae      "$MODELO_AVAE" \
+    --llm            "$MODELO_LLM" \
+    -p "$PROMPT" \
+    --cfg-scale "$CFG" -W "$W" -H "$H" --fps "$FPS" \
+    --video-frames "$FRAMES" --steps "$STEPS" \
+    --diffusion-fa --rng cpu \
+    --backend "$BACKEND" --params-backend "$PARAMS_BACKEND" \
+    --max-vram "$MAXVRAM" --stream-layers \
+    -o "$OUT" "$@" < /dev/null
+}
+
+# Ruta real del fichero que deja sd-cli cuando le pides "-o algo.mp4".
+sd_salida() { echo "$1.avi"; }
+
+# ── sd-cli: escalado ───────────────────────────────────────────────────────
+# Uso:  sd_upscale <entrada.png> <salida.png> <backend: CUDA0|CUDA1> [tile]
+sd_upscale() {
+  "$SDCLI" -M upscale -i "$1" \
+    --upscale-model "$UPSCALER" \
+    --upscale-tile-size "${4:-512}" --backend "$3" \
+    -o "$2" < /dev/null
+}
+
+# ── Comprobación de dependencias externas ──────────────────────────────────
+# Uso:  requiere ffmpeg ffprobe   -> aborta con un mensaje claro si falta algo
+requiere() {
+  local falta=""
+  for c in "$@"; do command -v "$c" >/dev/null 2>&1 || falta="$falta $c"; done
+  [ -z "$falta" ] || { echo "faltan comandos requeridos:$falta" >&2; return 1; }
+}

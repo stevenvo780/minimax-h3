@@ -4,11 +4,12 @@ Evaluador de calidad de vídeo generado. Puntúa 0-100 con criterio ESTRICTO.
 Uso: evaluar.py <video.mp4> [--json]
 
 Mide lo que el ojo percibe como "se degrada" y "no es congruente":
-  1. GRADACIÓN   (35 pts) entropía tonal de la cara: su caída = aspecto de cartón
-  2. TEXTURA     (25 pts) energía de bordes: su crecimiento = sobre-realce
-  3. CROMA       (15 pts) dispersión entre canales = aberración cromática
-  4. AUDIO       (15 pts) homogeneidad tonal a lo largo de la pieza
-  5. ESTABILIDAD (10 pts) ausencia de saltos bruscos entre muestras contiguas
+  1. GRADACIÓN   (30 pts) entropía tonal de la cara: su caída = aspecto de cartón
+  2. TEXTURA     (20 pts) energía de bordes: su crecimiento = sobre-realce
+  3. CROMA       (12 pts) dispersión entre canales = aberración cromática
+  4. AUDIO       (12 pts) homogeneidad tonal a lo largo de la pieza
+  5. ESTABILIDAD (8 pts) ausencia de saltos bruscos entre muestras contiguas
+  6. TRANSICIONES (18 pts) el salto en la unión no debe superar el movimiento natural
 Cada bloque se puntúa por la DERIVA entre el principio y el final, no por el
 valor absoluto: un vídeo uniformemente mediocre no debe puntuar como uno que
 empieza bien y acaba mal, pero tampoco se premia la uniformidad de lo malo.

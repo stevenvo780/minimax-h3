@@ -26,13 +26,6 @@ def entropia_limpia(png):
     c=collections.Counter(b); n=len(b)
     return -sum((k/n)*math.log2(k/n) for k in c.values())
 
-def ruido_plano(png):
-    """Desviación típica en la zona más plana = suelo de ruido visible."""
-    b=gb(png,"format=gray"); 
-    if not b: return None
-    vals=list(b); n=len(vals); m=sum(vals)/n
-    return math.sqrt(sum((x-m)**2 for x in vals)/n)
-
 def ruido_alta_frec(png):
     """Energía de alta frecuencia tras restar la versión suavizada = grano."""
     a=gb(png,"format=gray"); s=gb(png,"format=gray,gblur=sigma=0.9")
@@ -78,16 +71,16 @@ def evaluar(v, seg=None):
     cara=f"{int(w*0.45)}:{int(h*0.6)}:{int(w*0.28)}:{int(h*0.22)}"
     plano=f"{int(w*0.20)}:{int(h*0.25)}:{int(w*0.02)}:{int(h*0.03)}"   # esquina = fondo
     ts=[D*x for x in (0.04,0.20,0.36,0.52,0.68,0.84,0.96)]
-    ent,bor,cro,rui,hf=[],[],[],[],[]
+    ent,bor,cro,hf=[],[],[],[]
     for i,t in enumerate(ts):
         pc=os.path.join(T,f"c{i}.png"); pp=os.path.join(T,f"p{i}.png")
         frame(v,t,pc,cara); frame(v,t,pp,plano)
         if os.path.exists(pc):
             ent.append(entropia_limpia(pc)); bor.append(bordes_estr(pc)); cro.append(croma_disp(pc))
         if os.path.exists(pp):
-            rui.append(ruido_plano(pp)); hf.append(ruido_alta_frec(pp))
+            hf.append(ruido_alta_frec(pp))
     f=lambda L:[x for x in L if x is not None]
-    ent,bor,cro,rui,hf=f(ent),f(bor),f(cro),f(rui),f(hf)
+    ent,bor,cro,hf=f(ent),f(bor),f(cro),f(hf)
     if len(ent)<4: return None
     res={}
     # 1 GRADACIÓN 25 — no perder gradación real (medida sin ruido)

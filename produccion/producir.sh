@@ -12,14 +12,18 @@
 #  NO destructivo: nunca sobrescribe material de entrada.
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
-MD=/home/stev/Modelos-IA/minimax-h3
-PROD=$MD/produccion
-DEST=/home/stev/Vídeos
 
 GUION=${1:?falta el guion}
 NOMBRE=${2:-$(basename "$GUION" .guion)}
-W=${W:-1376}; H=${H:-768}; FRAMES=${FRAMES:-107}; STEPS=${STEPS:-20}
 SEED=${SEED:-100}
+
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+params_defecto 1376 768 107 20
+PROD=$MD/produccion
+
+# Este script fuerza tambien la VAE a CPU y un techo de VRAM bajo.
+PARAMS_BACKEND="diffusion=cpu,vae=cpu"
+MAXVRAM="cuda0=2"
 
 OBRA=$PROD/obra/$NOMBRE
 mkdir -p "$OBRA" "$PROD/logs"
@@ -45,19 +49,9 @@ non_diegetic_music:
 $MUSICA"
   local EXTRA=(); [ -n "$INIT" ] && EXTRA+=(--init-img "$INIT")
   local T0=$SECONDS
-  $MD/bin/sd-cli -M vid_gen \
-    --diffusion-model $MD/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf \
-    --vae $MD/vae/minimax_h3_video_vae_fp16.safetensors \
-    --audio-vae $MD/vae/minimax_h3_audio_vae_fp32.safetensors \
-    --llm $MD/text_encoders/qwen3vl_32b_minimax_h3-Q4_K_M.gguf \
-    -p "$PROMPT" -s $((SEED + 10#$IDX)) \
-    --cfg-scale 1.0 -W $W -H $H --fps 24 --video-frames $FRAMES --steps $STEPS \
-    --diffusion-fa --rng cpu \
-    --backend "diffusion=CUDA0,te=cpu,vae=CUDA0" --params-backend "diffusion=cpu,vae=cpu" \
-    --max-vram "cuda0=2" --stream-layers \
-    -o "$OUT.mp4" "${EXTRA[@]}" > "$PROD/logs/$NOMBRE-p$IDX.log" 2>&1
-  if [ -f "$OUT.mp4.avi" ]; then
-    mv "$OUT.mp4.avi" "$OUT.avi"
+  sd_vid_gen "$PROMPT" "$OUT.mp4" -s $((SEED + 10#$IDX)) "${EXTRA[@]}" > "$PROD/logs/$NOMBRE-p$IDX.log" 2>&1
+  if [ -f "$(sd_salida "$OUT.mp4")" ]; then
+    mv "$(sd_salida "$OUT.mp4")" "$OUT.avi"
     echo "  p$IDX OK en $((SECONDS-T0))s${INIT:+ (encadenado)}"
     return 0
   fi
@@ -68,19 +62,9 @@ $MUSICA"
       echo "  p$IDX OOM, reintento $try/4 en 90s (VRAM libre: $(nvidia-smi -i 0 --query-gpu=memory.free --format=csv,noheader))"
       sleep 90
       T0=$SECONDS
-      $MD/bin/sd-cli -M vid_gen \
-        --diffusion-model $MD/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf \
-        --vae $MD/vae/minimax_h3_video_vae_fp16.safetensors \
-        --audio-vae $MD/vae/minimax_h3_audio_vae_fp32.safetensors \
-        --llm $MD/text_encoders/qwen3vl_32b_minimax_h3-Q4_K_M.gguf \
-        -p "$PROMPT" -s $((SEED + 10#$IDX)) \
-        --cfg-scale 1.0 -W $W -H $H --fps 24 --video-frames $FRAMES --steps $STEPS \
-        --diffusion-fa --rng cpu \
-        --backend "diffusion=CUDA0,te=cpu,vae=CUDA0" --params-backend "diffusion=cpu,vae=cpu" \
-        --max-vram "cuda0=2" --stream-layers \
-        -o "$OUT.mp4" "${EXTRA[@]}" > "$PROD/logs/$NOMBRE-p$IDX.log" 2>&1
-      if [ -f "$OUT.mp4.avi" ]; then
-        mv "$OUT.mp4.avi" "$OUT.avi"
+      sd_vid_gen "$PROMPT" "$OUT.mp4" -s $((SEED + 10#$IDX)) "${EXTRA[@]}" > "$PROD/logs/$NOMBRE-p$IDX.log" 2>&1
+      if [ -f "$(sd_salida "$OUT.mp4")" ]; then
+        mv "$(sd_salida "$OUT.mp4")" "$OUT.avi"
         echo "  p$IDX OK en $((SECONDS-T0))s (reintento $try)${INIT:+ (encadenado)}"
         return 0
       fi
@@ -92,8 +76,8 @@ $MUSICA"
 }
 
 ultimo_frame() {  # $1=avi  $2=png destino
-  ffmpeg -y -v error -sseof -0.05 -i "$1" -frames:v 1 -update 1 "$2" 2>/dev/null
-  [ -f "$2" ] || ffmpeg -y -v error -i "$1" -vf "select=eq(n\,$((FRAMES-1)))" -frames:v 1 -update 1 "$2" 2>/dev/null
+  ff -y -v error -sseof -0.05 -i "$1" -frames:v 1 -update 1 "$2" 2>/dev/null
+  [ -f "$2" ] || ff -y -v error -i "$1" -vf "select=eq(n\,$((FRAMES-1)))" -frames:v 1 -update 1 "$2" 2>/dev/null
 }
 
 # ── recorrer el guion ──────────────────────────────────────────────────────
@@ -112,7 +96,7 @@ while IFS='|' read -r TIPO CONT MODO ENCU; do
       esac
       if generar_habla "$N" "$CONT" "$PREV" "${ENCU:-}"; then
         case "${MODO:-}" in encadena) MARCA="cont";; *) MARCA="tramo";; esac
-        echo "$OBRA/p$N.avi $MARCA" >> "$OBRA/orden.txt"
+        printf "%s\t%s\n" "$OBRA/p$N.avi" "$MARCA" >> "$OBRA/orden.txt"
         PREV=$OBRA/last$N.png; ultimo_frame "$OBRA/p$N.avi" "$PREV"
         [ -f "$PREV" ] || PREV=""
       fi
@@ -132,32 +116,55 @@ done < <(grep -E "^(HABLA|BROLL)\|" "$GUION")
 
 # ── ensamblar ──────────────────────────────────────────────────────────────
 echo "═══ ENSAMBLANDO ($(wc -l < "$OBRA/orden.txt") planos) ═══"
-MONT=$OBRA/montaje; mkdir -p "$MONT"; rm -f "$MONT"/*.mp4 "$MONT/lista.txt" 2>/dev/null
+MONT=$OBRA/montaje; mkdir -p "$MONT"; rm -f "$MONT"/*.mp4 "$MONT/lista.txt" "$MONT/tramos.txt" 2>/dev/null
 DUR=$(awk "BEGIN{printf \"%.4f\", $FRAMES/24}")
 i=0
-while read -r f marca; do
+while IFS=$'\t' read -r f marca; do
   i=$((i+1)); n=$(printf "%02d" $i)
   [ "$marca" = "tramo" ] && [ $i -gt 1 ] && echo "$n" >> "$MONT/tramos.txt"
-  CLIPDUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$f" 2>/dev/null)
+  CLIPDUR=$(ffp -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$f" 2>/dev/null)
   CLIPDUR=${CLIPDUR:-$DUR}
-  ffmpeg -nostdin -y -v error -i "$f" \
+  if ff -y -v error -i "$f" \
     -af "loudnorm=I=-19:TP=-2:LRA=7,afade=t=in:st=0:d=0.25,afade=t=out:st=$(awk "BEGIN{print $CLIPDUR-0.25}"):d=0.25" \
-    -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -c:a aac -b:a 192k "$MONT/$n.mp4"
-  echo "file '$MONT/$n.mp4'" >> "$MONT/lista.txt"
+    -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -c:a aac -b:a 192k "$MONT/$n.mp4"; then
+    echo "file '$MONT/$n.mp4'" >> "$MONT/lista.txt"
+  else
+    echo "  CLIP $i FALLO al procesar ($f) — OMITIDO del montaje"
+  fi
 done < "$OBRA/orden.txt"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 SEC=$(awk "BEGIN{printf \"%.0f\", $i*$DUR}")
 FINAL="$DEST/$NOMBRE-${W}x${H}-${SEC}s-$STAMP.mp4"
+
+# ── Guarda: sin clips no hay nada que concatenar ───────────────────────────
+[ -s "$MONT/lista.txt" ] || { echo "FALLO: ningun clip llego al montaje. Revisa $PROD/logs/"; exit 1; }
+
+# ── Guarda: "concat -c copy" con resoluciones distintas produce un fichero
+#    corrupto SIN dar ningun error. Mas vale parar aqui que entregar basura.
+declare -A DIMS
+while read -r f; do
+  d=$(ffp -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$f" 2>/dev/null)
+  [ -n "$d" ] || { echo "FALLO: no se pudieron leer las dimensiones de $f"; exit 1; }
+  DIMS[$d]=$(( ${DIMS[$d]:-0} + 1 ))
+done < <(grep "^file " "$MONT/lista.txt" | cut -d"'" -f2)
+if [ ${#DIMS[@]} -gt 1 ]; then
+  echo "FALLO: los clips NO comparten resolucion, el concat saldria corrupto:"
+  for d in "${!DIMS[@]}"; do echo "    ${DIMS[$d]} clip(s) a ${d/,/x}"; done
+  echo "    (suele pasar al mezclar BROLL de 1376x768 con planos generados a otra W/H)"
+  echo "    los clips ya procesados estan intactos en $MONT/"
+  exit 1
+fi
+
 # Union DURA dentro de cada tramo (la continuidad es exacta), FUNDIDO entre tramos.
 if [ -s "$MONT/tramos.txt" ]; then
   echo "  fundidos entre tramos: $(tr '\n' ' ' < $MONT/tramos.txt)"
   python3 "$PROD/fundir.py" "$MONT" "$FINAL" || \
-    ffmpeg -nostdin -y -v error -f concat -safe 0 -i "$MONT/lista.txt" -c copy "$FINAL"
+    ff -y -v error -f concat -safe 0 -i "$MONT/lista.txt" -c copy "$FINAL"
 else
-  ffmpeg -nostdin -y -v error -f concat -safe 0 -i "$MONT/lista.txt" -c copy "$FINAL"
+  ff -y -v error -f concat -safe 0 -i "$MONT/lista.txt" -c copy "$FINAL"
 fi
 [ -f "$FINAL" ] || { echo "FALLO al ensamblar"; exit 1; }
 echo "═══ LISTO: $FINAL ═══"
-ffprobe -v error -show_entries format=duration,size -show_entries stream=codec_type,width,height,nb_frames \
+ffp -v error -show_entries format=duration,size -show_entries stream=codec_type,width,height,nb_frames \
         -of default=noprint_wrappers=1 "$FINAL"

@@ -23,10 +23,45 @@ def dur(f):
     r = subprocess.run(["ffprobe","-v","error","-show_entries","format=duration",
                         "-of","default=noprint_wrappers=1:nokey=1",f],
                        capture_output=True, text=True)
-    return float(r.stdout.strip())
+    if r.returncode != 0:
+        sys.stderr.write(f"ERROR: ffprobe fallo en '{f}' (returncode {r.returncode})\n")
+        sys.exit(1)
+    s = r.stdout.strip()
+    if not s:
+        sys.stderr.write(f"ERROR: ffprobe no devolvio duracion para '{f}'\n")
+        sys.exit(1)
+    try:
+        d = float(s)
+    except ValueError:
+        sys.stderr.write(f"ERROR: no se puede parsear duracion '{s}' para '{f}'\n")
+        sys.exit(1)
+    if not (0 < d < float('inf')):
+        sys.stderr.write(f"ERROR: duracion invalida {d} para '{f}'\n")
+        sys.exit(1)
+    return d
+
+def get_video_metadata(f):
+    """Extrae WxH, pix_fmt, r_frame_rate de un archivo."""
+    r = subprocess.run(["ffprobe","-v","error","-select_streams","v","-show_entries",
+                        "stream=width,height,pix_fmt,r_frame_rate","-of","csv=p=0",f],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.stderr.write(f"ERROR: ffprobe metadatos fallo en '{f}'\n")
+        sys.exit(1)
+    parts = r.stdout.strip().split(",")
+    if len(parts) < 4:
+        sys.stderr.write(f"ERROR: metadatos incompletos en '{f}'\n")
+        sys.exit(1)
+    return {"width": int(parts[0]), "height": int(parts[1]), "pix_fmt": parts[2], "r_frame_rate": parts[3]}
+
+# Limpiar ejecuciones anteriores
+for f in glob.glob(os.path.join(MONT, "l[0-9]*.txt")) + glob.glob(os.path.join(MONT, "tramo[0-9]*.mp4")):
+    try: os.remove(f)
+    except: pass
 
 # 1) concat duro dentro de cada tramo
 tramos = []
+metadatos = []
 for gi, g in enumerate(grupos):
     out = os.path.join(MONT, f"tramo{gi}.mp4")
     lst = os.path.join(MONT, f"l{gi}.txt")
@@ -35,6 +70,18 @@ for gi, g in enumerate(grupos):
     subprocess.run(["ffmpeg","-nostdin","-y","-v","error","-f","concat","-safe","0",
                     "-i",lst,"-c","copy",out], check=True)
     tramos.append(out)
+    meta = get_video_metadata(out)
+    metadatos.append(meta)
+
+# Validar que todos los tramos tienen la misma resolucion y formato
+ref_meta = metadatos[0]
+for i, meta in enumerate(metadatos[1:], 1):
+    if meta["width"] != ref_meta["width"] or meta["height"] != ref_meta["height"] or \
+       meta["pix_fmt"] != ref_meta["pix_fmt"] or meta["r_frame_rate"] != ref_meta["r_frame_rate"]:
+        sys.stderr.write(f"ERROR: tramos incompatibles para xfade:\n")
+        sys.stderr.write(f"tramo0: {ref_meta['width']}x{ref_meta['height']}, {ref_meta['pix_fmt']}, {ref_meta['r_frame_rate']}\n")
+        sys.stderr.write(f"tramo{i}: {meta['width']}x{meta['height']}, {meta['pix_fmt']}, {meta['r_frame_rate']}\n")
+        sys.exit(1)
 
 if len(tramos) == 1:
     subprocess.run(["cp", tramos[0], FINAL], check=True); sys.exit(0)

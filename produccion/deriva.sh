@@ -2,14 +2,14 @@
 # Diagnostico de una cadena encadenada:
 #  UNION  = ultimo frame de pN vs primer frame de p(N+1)  -> fidelidad del enlace
 #  DERIVA = histograma de color de pN vs p01              -> el personaje/escena muta?
-MD=/home/stev/Modelos-IA/minimax-h3
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 OBRA=$MD/produccion/obra/${1:-existencialismo}
 T=$(mktemp -d); trap 'rm -rf $T' EXIT
-ult() { ffmpeg -y -v error -sseof -0.05 -i "$1" -frames:v 1 -update 1 "$2" 2>/dev/null; }
-pri() { ffmpeg -y -v error -i "$1" -frames:v 1 -update 1 "$2" 2>/dev/null; }
-psnr(){ ffmpeg -v info -i "$1" -i "$2" -lavfi psnr -f null - 2>&1 | grep -oE "average:[0-9.]+" | head -1 | cut -d: -f2; }
+ult() { ff -y -v error -sseof -0.05 -i "$1" -frames:v 1 -update 1 "$2" 2>/dev/null; }
+pri() { ff -y -v error -i "$1" -frames:v 1 -update 1 "$2" 2>/dev/null; }
+psnr(){ ff -v info -i "$1" -i "$2" -lavfi psnr -f null - 2>&1 | grep -oE "average:[0-9.]+" | head -1 | cut -d: -f2; }
 # firma de color: medias RGB del frame (detecta cambio de iluminacion/paleta)
-firma(){ ffmpeg -v info -i "$1" -vf "scale=8:8,format=rgb24" -f rawvideo - 2>/dev/null | od -An -tu1 | awk '{for(i=1;i<=NF;i++){s[(i-1)%3]+=$i;n[(i-1)%3]++}} END{printf "%.0f,%.0f,%.0f", s[0]/n[0], s[1]/n[1], s[2]/n[2]}'; }
+firma(){ ff -v info -i "$1" -vf "scale=8:8,format=rgb24" -f rawvideo - 2>/dev/null | od -An -tu1 | awk '{for(i=1;i<=NF;i++){s[(i-1)%3]+=$i;n[(i-1)%3]++}} END{printf "%.0f,%.0f,%.0f", s[0]/n[0], s[1]/n[1], s[2]/n[2]}'; }
 
 echo "════ CADENA: $(basename $OBRA) ════"
 mapfile -t AVIS < <(ls $OBRA/p*.avi 2>/dev/null)

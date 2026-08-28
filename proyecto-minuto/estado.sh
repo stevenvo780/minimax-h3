@@ -1,15 +1,27 @@
 #!/bin/bash
-P=/home/stev/Modelos-IA/minimax-h3/proyecto-minuto
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+P=$MD/proyecto-minuto
 G=$(ls -1 $P/shots/s*.avi 2>/dev/null | wc -l)
 U=$(ls -1 $P/up-mp4/s*.mp4 2>/dev/null | wc -l)
+T=$(ls -1 $P/prompts/s*.txt 2>/dev/null | wc -l); T=${T:-0}; [ "$T" -gt 0 ] || T=14
 echo "════════ PROYECTO 1 MINUTO ════════  $(date '+%H:%M:%S')"
-barra() { local n=$1 t=14 i; local o=""; for ((i=1;i<=t;i++)); do [ $i -le $n ] && o="$o#" || o="$o."; done; echo "$o"; }
-printf "  GENERACIÓN  %2d/14  [%s]\n" $G "$(barra $G)"
-printf "  ESCALADO    %2d/14  [%s]\n" $U "$(barra $U)"
+# Barra de progreso adaptada al número máximo de planos y pasos
+barra() {
+  local n=$1 t=$2 i; local o=""
+  for ((i=1;i<=t;i++)); do [ $i -le $n ] && o="$o#" || o="$o."; done
+  echo "$o"
+}
+printf "  GENERACIÓN  %2d/%d  [%s]\n" $G $T "$(barra $G $T)"
+printf "  ESCALADO    %2d/%d  [%s]\n" $U $T "$(barra $U $T)"
 echo
 S=$(ls -t $P/logs/s*.log 2>/dev/null | head -1)
-if pgrep -f "proyecto-minuto/generar.sh" >/dev/null; then
-  echo "  generando: $(basename $S .log) -> $(tr '\r' '\n' < $S | grep -oE '[0-9]+/20 - [0-9.]+s/it' | tail -1)"
+if pgrep -f '[/ ]generar\.sh' >/dev/null; then
+  if [ -n "$S" ]; then
+    PROG=$(tr '\r' '\n' < "$S" | grep -oE '[0-9]+/'"$STEPS"' - [0-9.]+s/it' | tail -1)
+    echo "  generando: $(basename "$S" .log) -> $PROG"
+  else
+    echo "  generando: (sin logs aún)"
+  fi
 else
   echo "  generación: TERMINADA"
 fi
