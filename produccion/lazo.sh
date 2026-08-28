@@ -1,105 +1,111 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════
-#  LAZO — produce, mide, decide, repite. Hasta la meta o hasta agotar el tiempo.
+#  LAZO — produce, mide, mira, decide, repite. Hasta la meta o hasta el tiempo.
 #
-#  Uso:  lazo.sh <guion> <nombre> [--meta 85] [--horas 8] [--dry-run]
+#  Uso: lazo.sh <guion> <nombre> [--meta 85] [--horas 8] [--frames 345]
+#                                [--w 736] [--h 416] [--pasos 20] [--dry-run]
 #
-#  Palancas, de barata a cara. NO hay palanca de desenfoque: se probo y se
-#  descarto porque mejoraba el numero destruyendo detalle (ver lib/enlace.sh).
-#    1. REANCLAR  reescribe la linea del guion a "ancla:anclas/aNN.png" y
-#                 regenera ese plano. Resetea la deriva sin tocar pixeles.
-#    2. REGENERAR mismo plano, otra semilla.
-#    3. TOPOLOGIA planos mas largos -> menos eslabones. Lo mas caro y lo mas
-#                 eficaz: medido, cada eslabon cuesta puntos y el tercero
-#                 se lleva 19 de golpe (95.0 / 89.0 / 87.7 / 68.7).
+#  ESTRATEGIA, derivada de lo medido y no de la intuicion:
 #
-#  REANUDABLE: guarda estado tras cada accion. Si lo matan, continua donde iba.
-#  NO DESTRUCTIVO: antes de regenerar, el plano viejo va a descartes/.
+#    El modelo NO se degrada con la duracion. Un plano solo mantiene gradacion
+#    25/25 y estructura 20/20 desde 56 hasta 517 frames. Lo unico que degrada es
+#    el ESLABON: encadenar cuatro planos hunde el montaje de 95.0 a 68.7, con un
+#    acantilado en el tercer enlace. Por eso este lazo NO encadena: produce UNA
+#    TOMA lo mas larga que quepa, y lo que varia entre intentos son la semilla,
+#    los pasos y el enfasis del prompt.
+#
+#    Palancas, de barata a cara:
+#      1. SEMILLA   otra tirada, mismo coste, resultados muy distintos
+#      2. PASOS     mas pasos = mejor adherencia al prompt (medido: a 4 pasos
+#                   el encuadre se va y el fondo deja de ser negro)
+#      3. FRAMES    acortar si no cupo; alargar si sobra margen
+#
+#    NO hay palanca de desenfoque: mejoraba la nota destruyendo la imagen.
+#
+#  Cada intento se mide Y se deja una hoja de contactos, porque evaluar2 mide
+#  degradacion y no belleza: un video puede sacar 90 y estar mal encuadrado.
+#
+#  REANUDABLE y NO DESTRUCTIVO: cada intento se guarda con su nota; el mejor
+#  se enlaza como mejor.avi. Nunca se borra nada.
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
-. "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh" 2>/dev/null || true
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh"
 PROD=$MD/produccion
 
 GUION=${1:?falta el guion}; NOMBRE=${2:?falta el nombre}; shift 2
-META=85; HORAS=8; SECO=0
+META=85; HORAS=8; FRAMES=345; W=736; H=416; PASOS=20; SECO=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --meta)  META=$2; shift 2 ;;
-    --horas) HORAS=$2; shift 2 ;;
-    --dry-run) SECO=1; shift ;;
+    --meta) META=$2; shift 2 ;;  --horas) HORAS=$2; shift 2 ;;
+    --frames) FRAMES=$2; shift 2 ;; --w) W=$2; shift 2 ;; --h) H=$2; shift 2 ;;
+    --pasos) PASOS=$2; shift 2 ;;  --dry-run) SECO=1; shift ;;
     *) echo "opcion desconocida: $1"; exit 2 ;;
   esac
 done
 
-OBRA=$PROD/obra/$NOMBRE
-EST=$OBRA/lazo-estado.json
-BIT=$OBRA/lazo.log
-mkdir -p "$OBRA/descartes"
+OBRA=$PROD/obra/$NOMBRE; mkdir -p "$OBRA/intentos"
+BIT=$OBRA/lazo.log; EST=$OBRA/lazo-estado.json
 LIMITE=$(( $(date +%s) + HORAS*3600 ))
-
 anota() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$BIT"; }
 
-guardar_estado() {  # $1=iteracion $2=nota $3=accion $4=detalle
-  cat > "$EST" <<JSON
-{ "nombre": "$NOMBRE", "iteracion": $1, "nota": ${2:-null},
-  "ultima_accion": "$3", "detalle": "$4",
-  "meta": $META, "sello": "$(date -Iseconds)" }
-JSON
-}
+# Semillas ya probadas, para reanudar sin repetir trabajo caro.
+PROBADAS=""; MEJOR_NOTA=0; MEJOR=""
+if [ -f "$EST" ]; then
+  PROBADAS=$(python3 -c "import json;print(' '.join(str(s) for s in json.load(open('$EST')).get('semillas',[])))" 2>/dev/null || echo "")
+  MEJOR_NOTA=$(python3 -c "import json;print(json.load(open('$EST')).get('mejor_nota',0))" 2>/dev/null || echo 0)
+  MEJOR=$(python3 -c "import json;print(json.load(open('$EST')).get('mejor','') )" 2>/dev/null || echo "")
+fi
 
-nota_actual() {
-  local j; j=$(python3 "$PROD/auditar.py" obra "$OBRA" --json 2>/dev/null) || return 1
-  python3 -c "
+guardar() {
+  python3 - "$EST" "$MEJOR_NOTA" "$MEJOR" "$PROBADAS" <<'PY'
 import json,sys
-d=json.loads(sys.stdin.read())
-print(d.get('nota_media_planos') or 0, d.get('accion','NINGUNA'),
-      (d.get('peor_enlace') or {}).get('a',''))" <<<"$j"
+est,mn,mj,pr = sys.argv[1:5]
+json.dump({"mejor_nota": float(mn), "mejor": mj,
+           "semillas": [int(x) for x in pr.split()] if pr.strip() else []},
+          open(est,"w"), indent=1)
+PY
 }
 
-# ── el bucle ───────────────────────────────────────────────────────────────
-ITER=0; PREV=""; SIN_MEJORA=0
-[ -f "$EST" ] && ITER=$(python3 -c "import json;print(json.load(open('$EST'))['iteracion'])" 2>/dev/null || echo 0)
-anota "═══ LAZO: $NOMBRE · meta $META · $HORAS h · reanudando en iteracion $ITER"
+anota "═══ LAZO $NOMBRE · meta $META · ${HORAS}h · ${W}x${H} ${FRAMES}f ${PASOS} pasos"
+[ -n "$PROBADAS" ] && anota "reanudando: semillas ya probadas [$PROBADAS], mejor hasta ahora $MEJOR_NOTA"
 
-while :; do
-  ITER=$((ITER+1))
-  if [ "$(date +%s)" -ge "$LIMITE" ]; then anota "tiempo agotado tras $((ITER-1)) iteraciones"; break; fi
+INTENTO=0
+for SEMILLA in 100 200 300 400 500 600 700 800; do
+  case " $PROBADAS " in *" $SEMILLA "*) anota "semilla $SEMILLA ya probada, salto"; continue ;; esac
+  INTENTO=$((INTENTO+1))
+  if [ "$(date +%s)" -ge "$LIMITE" ]; then anota "tiempo agotado"; break; fi
 
-  if [ $SECO -eq 0 ]; then
-    anota "iteracion $ITER: produciendo"
-    DEST="$DEST" bash "$PROD/producir.sh" "$GUION" "$NOMBRE" >> "$BIT" 2>&1
+  anota "intento $INTENTO · semilla $SEMILLA"
+  if [ $SECO -eq 1 ]; then
+    anota "[SECO] generaria ${FRAMES}f a ${W}x${H}, ${PASOS} pasos, semilla $SEMILLA"
+    NOTA=$(awk -v i=$INTENTO 'BEGIN{print 70+i*6}')   # simulacion creciente
   else
-    anota "iteracion $ITER: [SECO] se omite la produccion"
+    SEED=$SEMILLA bash "$PROD/producir-toma-unica.sh" "$GUION" "$NOMBRE" \
+         "$FRAMES" "$W" "$H" "$PASOS" >> "$BIT" 2>&1
+    V=$OBRA/p01.avi
+    [ -f "$V" ] || { anota "intento $INTENTO fallo la generacion"; PROBADAS="$PROBADAS $SEMILLA"; guardar; continue; }
+    mv "$V" "$OBRA/intentos/s$SEMILLA.avi"; V=$OBRA/intentos/s$SEMILLA.avi
+    NOTA=$(python3 "$PROD/evaluar2.py" "$V" 2>/dev/null | sed -n 's/.*TOTAL \([0-9.]*\).*/\1/p')
+    python3 "$PROD/auditar.py" contacto "$V" "$OBRA/intentos/s$SEMILLA.jpg" >/dev/null 2>&1
+    python3 "$PROD/auditar.py" audio "$V" 2>/dev/null | tee -a "$BIT"
   fi
+  PROBADAS="$PROBADAS $SEMILLA"
+  anota "intento $INTENTO · semilla $SEMILLA · nota ${NOTA:-0}"
 
-  read -r NOTA ACCION PLANO < <(nota_actual) || { anota "no pude auditar; abandono"; break; }
-  anota "iteracion $ITER: nota $NOTA · accion sugerida $ACCION ${PLANO:+sobre $PLANO}"
-  guardar_estado "$ITER" "$NOTA" "$ACCION" "$PLANO"
-
-  if awk -v n="$NOTA" -v m="$META" 'BEGIN{exit !(n>=m)}'; then
-    anota "META ALCANZADA: $NOTA >= $META"; break
+  if awk -v n="${NOTA:-0}" -v m="$MEJOR_NOTA" 'BEGIN{exit !(n>m)}'; then
+    MEJOR_NOTA=$NOTA; MEJOR=${V:-simulado}
+    [ $SECO -eq 0 ] && ln -sf "$(basename "$V")" "$OBRA/intentos/mejor.avi"
+    anota "nuevo mejor: $MEJOR_NOTA"
   fi
+  guardar
 
-  if [ -n "$PREV" ] && awk -v a="$NOTA" -v b="$PREV" 'BEGIN{exit !(a<=b)}'; then
-    SIN_MEJORA=$((SIN_MEJORA+1))
-    anota "sin mejora ($PREV -> $NOTA), van $SIN_MEJORA"
-    [ $SIN_MEJORA -ge 2 ] && { anota "dos acciones sin mejorar: paro para no quemar GPU en un minimo local"; break; }
-  else
-    SIN_MEJORA=0
+  if awk -v n="$MEJOR_NOTA" -v m="$META" 'BEGIN{exit !(n>=m)}'; then
+    anota "META ALCANZADA: $MEJOR_NOTA >= $META  ->  $MEJOR"
+    anota "MIRA la hoja de contactos antes de darlo por bueno: la nota mide"
+    anota "degradacion, no belleza."
+    break
   fi
-  PREV=$NOTA
-
-  case "$ACCION" in
-    REANCLAR|REGENERAR)
-      if [ $SECO -eq 1 ]; then anota "[SECO] aplicaria $ACCION a $PLANO"; break; fi
-      V=$OBRA/${PLANO}.avi
-      [ -f "$V" ] && mv "$V" "$OBRA/descartes/${PLANO}-$(date +%Y%m%d-%H%M%S).avi" \
-        && anota "plano $PLANO apartado en descartes/ (nunca se borra)"
-      ;;
-    NINGUNA) anota "sin accion aplicable y por debajo de la meta: paro"; break ;;
-    *)       anota "accion no reconocida: $ACCION"; break ;;
-  esac
 done
 
-anota "═══ FIN · iteraciones $ITER · ultima nota ${PREV:-—} · bitacora $BIT"
+anota "═══ FIN · $INTENTO intentos · mejor $MEJOR_NOTA · $MEJOR"
