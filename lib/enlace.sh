@@ -1,122 +1,78 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════
-#  ENLACE — limpieza calibrada del frame de enlace
+#  ENLACE — rompe la realimentacion que acartona la imagen.
 #
-#  El último frame de un plano se pasa como --init-img al siguiente (modo
-#  `encadena`). Ese frame ya lleva el realce del modelo; el siguiente plano
-#  realza ENCIMA -> realimentación positiva que va acartonando la imagen
-#  eslabón a eslabón (bordes: 12.34 -> 12.98 -> 13.58 -> 14.48, medido sobre
-#  produccion/obra/existencialismo-4p/last0N.png, referencia p01 = 11.96).
+#  El ultimo frame de un plano se pasa como --init-img del siguiente. Ese frame
+#  ya lleva el realce que el modelo aplico, y el modelo vuelve a realzar encima:
+#  fotocopiar una fotocopia. Medido sobre existencialismo-4p, el exceso de
+#  energia de borde sobre el primer frame del primer plano crece monotono:
+#      last01 +3.2%   last02 +8.5%   last03 +13.5%   last04 +21.1%
+#  y con el, la nota del montaje cae de 95 (un plano) a 68.8 (cuatro).
 #
-#  Este fichero calibra y aplica un desenfoque gaussiano (gblur) sobre el
-#  frame de enlace para devolverlo a la energía de bordes de la referencia
-#  ANTES de pasarlo como --init-img, cortando la realimentación.
+#  La correccion, medida: un gblur devuelve el frame a la referencia.
+#      sigma 0.5 -> +17.1%   0.9 -> +10.0%   1.3 -> +2.8%
+#  Aqui NO se usa esa recta ajustada: se busca el sigma por biseccion contra la
+#  referencia real de cada obra, que es mas robusto si cambia la resolucion,
+#  el prompt o el modelo.
 #
-#  Se sourcea desde cualquier script del proyecto:
-#      . "$(dirname "${BASH_SOURCE[0]}")/lib/enlace.sh"        # desde la raíz
-#      . "$(dirname "${BASH_SOURCE[0]}")/../lib/enlace.sh"     # desde produccion/
+#  Uso:  . lib/enlace.sh
+#        enlace_bordes  <png>
+#        enlace_sigma   <png> <bordes_referencia> [tolerancia_%]
+#        enlace_limpiar <png_in> <png_out> <bordes_referencia> [tolerancia_%]
 # ═══════════════════════════════════════════════════════════════════════════
 
-. "$(dirname "${BASH_SOURCE[0]}")/comun.sh"
-
-# ── medida ──────────────────────────────────────────────────────────────────
-# enlace_bordes <png>
-#   Energía de bordes, EXACTAMENTE como la mide produccion/evaluar2.py:
-#   bordes_estr() -> gb(png,"format=gray,gblur=sigma=1.3,sobel"); sum(b)/len(b)
-#   Mismo filtro, mismo -f rawvideo, misma media de bytes: los números tienen
-#   que coincidir dígito a dígito con evaluar2.py o la calibración no vale.
+# Energia de borde estructural. MISMA medida que evaluar2.bordes_estr(), para
+# que el numero sea comparable con el que produce el auditor.
 enlace_bordes() {
-  local png=$1
-  ff -v error -i "$png" -vf "format=gray,gblur=sigma=1.3,sobel" -f rawvideo - 2>/dev/null \
-    | python3 -c '
-import sys
-b = sys.stdin.buffer.read()
-print(sum(b) / len(b) if b else "")
-'
+  ffmpeg -nostdin -v error -i "$1" -vf "format=gray,gblur=sigma=1.3,sobel" \
+         -f rawvideo - 2>/dev/null \
+    | od -An -tu1 -v | awk '{for(i=1;i<=NF;i++){s+=$i;n++}} END{if(n)printf "%.4f", s/n; else print "0"}'
 }
 
-# _enlace_bordes_tras <png> <sigma_previo>
-#   Interno: bordes que resultarían de limpiar <png> con gblur=<sigma_previo>
-#   ANTES de aplicar la propia cadena de medida (un solo proceso ffmpeg:
-#   se encadenan los dos gblur en el mismo -vf). Usado por enlace_sigma para
-#   evaluar candidatos durante la búsqueda, sin escribir ficheros intermedios.
-_enlace_bordes_tras() {
-  local png=$1 sigma=$2
-  ff -v error -i "$png" -vf "gblur=sigma=${sigma},format=gray,gblur=sigma=1.3,sobel" -f rawvideo - 2>/dev/null \
-    | python3 -c '
-import sys
-b = sys.stdin.buffer.read()
-print(sum(b) / len(b) if b else "")
-'
+# Filtro de correccion. UN solo sitio, para que la biseccion y la aplicacion
+# usen exactamente el mismo, o el resultado no coincide con lo buscado.
+# OJO: en un PNG el espacio es RGB, donde planes=1 es el canal ROJO, no la luma.
+# Hay que pasar por yuv444p para que planes=1 sea Y y planes=6 sean U+V.
+# El croma se corrige 1.6x mas: la aberracion cromatica es el artefacto visible
+# y desenfocar croma es imperceptible, mientras que pasarse con la luma acartona
+# en la direccion contraria (blando).
+_enlace_filtro() {
+  awk -v s="$1" 'BEGIN{printf "format=yuv444p,gblur=sigma=%.4f:planes=1,gblur=sigma=%.4f:planes=6,format=rgb24", s, s*1.6}'
 }
 
-# _enlace_dentro <valor> <ref> <tol>  -> exit 0 si |valor-ref| <= ref*tol
-_enlace_dentro() {
-  python3 -c "
-import sys
-v, ref, tol = $1, $2, $3
-sys.exit(0 if abs(v - ref) <= ref * tol else 1)
-"
-}
-
-# ── búsqueda ────────────────────────────────────────────────────────────────
-# enlace_sigma <png> <ref_bordes> [tolerancia=0.03]
-#   Busca por BISECCIÓN (rango sigma 0..3, 8 iteraciones) el sigma de gblur
-#   que deja los bordes de <png> dentro de <tolerancia> de <ref_bordes>.
-#   Los bordes bajan monótonamente al subir sigma (más desenfoque = menos
-#   energía de Sobel), así que la bisección es válida: si el candidato queda
-#   POR ENCIMA de la referencia hace falta MÁS sigma (mitad alta); si queda
-#   POR DEBAJO, hace falta MENOS (mitad baja).
-#   Si <png> ya está dentro de tolerancia sin tocarlo, devuelve 0 y no evalúa
-#   ningún candidato (no hay que emborronar lo que ya está limpio).
+# Busca por biseccion el sigma que deja los bordes dentro de la tolerancia.
+# Devuelve 0 si el frame ya esta limpio: nunca emborrona de mas.
 enlace_sigma() {
-  local png=$1 ref=$2 tol=${3:-0.03}
-  local actual
-  actual=$(enlace_bordes "$png")
-  if [ -z "$actual" ]; then
-    echo "enlace_sigma: no pude medir '$png'" >&2
-    return 1
-  fi
-  if _enlace_dentro "$actual" "$ref" "$tol"; then
-    echo 0
+  local png=$1 ref=$2 tol=${3:-3}
+  local b0; b0=$(enlace_bordes "$png")
+  awk -v b="$b0" -v r="$ref" -v t="$tol" 'BEGIN{exit !(r>0 && 100*(b-r)/r <= t)}' && { echo "0"; return 0; }
+  local lo=0 hi=3 mid tmp bm i
+  tmp=$(mktemp --suffix=.png)
+  for i in 1 2 3 4 5 6 7 8; do
+    mid=$(awk -v l="$lo" -v h="$hi" 'BEGIN{printf "%.4f",(l+h)/2}')
+    ffmpeg -nostdin -v error -y -i "$png" -vf "$(_enlace_filtro "$mid")" "$tmp" 2>/dev/null
+    bm=$(enlace_bordes "$tmp")
+    # demasiados bordes todavia -> mas desenfoque; ya por debajo -> menos
+    if awk -v b="$bm" -v r="$ref" 'BEGIN{exit !(b>r)}'; then lo=$mid; else hi=$mid; fi
+  done
+  rm -f "$tmp"
+  awk -v l="$lo" -v h="$hi" 'BEGIN{printf "%.3f",(l+h)/2}'
+}
+
+# Aplica la correccion. El croma se corrige MAS que la luma: la aberracion
+# cromatica es el artefacto visible y desenfocar croma es imperceptible al ojo,
+# mientras que pasarse con la luma acartona en la direccion contraria (blando).
+enlace_limpiar() {
+  local in=$1 out=$2 ref=$3 tol=${4:-3}
+  local s b0 b1
+  b0=$(enlace_bordes "$in")
+  s=$(enlace_sigma "$in" "$ref" "$tol")
+  if [ "$s" = "0" ]; then
+    cp "$in" "$out"
+    echo "  enlace: bordes $b0 ya dentro del ${tol}% de $ref, no se toca" >&2
     return 0
   fi
-  local lo=0 hi=3 mid val i
-  for i in 1 2 3 4 5 6 7 8; do
-    mid=$(python3 -c "print(($lo + $hi) / 2)")
-    val=$(_enlace_bordes_tras "$png" "$mid")
-    if _enlace_dentro "$val" "$ref" "$tol"; then
-      break
-    fi
-    if python3 -c "import sys; sys.exit(0 if $val > $ref else 1)"; then
-      lo=$mid   # todavía por encima de la referencia -> hace falta más sigma
-    else
-      hi=$mid   # ya por debajo -> nos pasamos, hace falta menos sigma
-    fi
-  done
-  echo "$mid"
-}
-
-# ── limpieza ────────────────────────────────────────────────────────────────
-# enlace_limpiar <png_in> <png_out> <ref_bordes> [tolerancia=0.03]
-#   Calcula el sigma con enlace_sigma y escribe <png_out> limpio.
-#   Si el sigma encontrado es 0 (ya estaba dentro de tolerancia) NO reescribe
-#   con ffmpeg -vf gblur: copia el fichero tal cual, así un frame ya limpio
-#   sale idéntico, sin pasar de nuevo por el códec PNG.
-#   Informa por stderr: bordes antes, sigma aplicado, bordes después.
-enlace_limpiar() {
-  local pin=$1 pout=$2 ref=$3 tol=${4:-0.03}
-  local antes sigma despues
-
-  antes=$(enlace_bordes "$pin")
-  sigma=$(enlace_sigma "$pin" "$ref" "$tol")
-
-  if python3 -c "import sys; sys.exit(0 if float('$sigma') <= 0 else 1)"; then
-    cp "$pin" "$pout"
-  else
-    ff -y -v error -i "$pin" -vf "gblur=sigma=${sigma}" "$pout" 2>/dev/null
-  fi
-
-  despues=$(enlace_bordes "$pout")
-  echo "enlace_limpiar: $pin -> $pout | bordes antes=$antes sigma=$sigma bordes despues=$despues (ref=$ref tol=$tol)" >&2
+  ffmpeg -nostdin -v error -y -i "$in" -vf "$(_enlace_filtro "$s")" "$out" 2>/dev/null || return 1
+  b1=$(enlace_bordes "$out")
+  echo "  enlace: bordes $b0 -> $b1 (referencia $ref, sigma $s)" >&2
 }
