@@ -2,9 +2,9 @@
 """
 Auditor de una obra: convierte "se ve acartonado" en una decision.
 
-Uso:  auditar.py obra   <dir_obra>          [--json]
-      auditar.py plano  <fichero.avi>       [--json]
-      auditar.py enlace <avi_A> <avi_B>     [--json]
+Uso:  auditar.py obra     <dir_obra>            [--json] [--rapido]
+      auditar.py plano    <fichero.avi>         [--json]
+      auditar.py contacto <video> [salida.jpg]  hoja de contactos para MIRARLO
 
 Reutiliza las medidas de evaluar2.py (criterio anti-trampa del autor, intacto)
 y añade lo que faltaba: medir EL ESLABON, no solo el plano.
@@ -115,6 +115,45 @@ def auditar_obra(dir_obra, con_notas=True):
     finally:
         subprocess.run(["rm", "-rf", T])
 
+def contacto(video, salida, n=9):
+    """Hoja de contactos: n fotogramas repartidos, en rejilla, con el segundo
+    rotulado. Existe porque evaluar2 mide degradacion y no belleza: un video
+    puede sacar 90 y estar oscuro, mal encuadrado y con el fondo equivocado.
+    La nota no sustituye a mirarlo."""
+    d = E.dur(video)
+    cols = 3 if n <= 9 else 4
+    filas = (n + cols - 1) // cols
+    T = tempfile.mkdtemp(prefix="contacto-")
+    try:
+        trozos = []
+        for i in range(n):
+            t = d * (i + 0.5) / n
+            f = os.path.join(T, f"{i:02d}.png")
+            subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", str(t),
+                            "-i", video, "-frames:v", "1", "-update", "1", f],
+                           capture_output=True)
+            if os.path.exists(f): trozos.append((f, t))
+        if not trozos: return None
+        ins, filtros, etiq = [], [], []
+        for i, (f, t) in enumerate(trozos):
+            ins += ["-i", f]
+            filtros.append(f"[{i}:v]scale=320:-1,drawtext=text='{t:.1f}s':fontcolor=yellow:"
+                           f"fontsize=20:x=8:y=6:box=1:boxcolor=black@0.5[v{i}]")
+            etiq.append(f"[v{i}]")
+        layout = "|".join(
+            ("0" if c == 0 else "+".join(f"w{k}" for k in range(c))) + "_" +
+            ("0" if r == 0 else "+".join(f"h{k*cols}" for k in range(r)))
+            for r in range(filas) for c in range(cols))[:None]
+        layout = "|".join(layout.split("|")[:len(trozos)])
+        cmd = (["ffmpeg", "-nostdin", "-y", "-v", "error"] + ins +
+               ["-filter_complex", ";".join(filtros) + ";" + "".join(etiq) +
+                f"xstack=inputs={len(trozos)}:layout={layout}:fill=black",
+                "-frames:v", "1", "-q:v", "3", salida])
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        return salida if os.path.exists(salida) else None
+    finally:
+        subprocess.run(["rm", "-rf", T])
+
 def _imprimir(r):
     if "error" in r: print(f"  {r['error']}"); return 1
     print(f"╔══ obra: {r['obra']}   (referencia de bordes {r['referencia_bordes']})")
@@ -133,6 +172,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 3: print(__doc__); sys.exit(2)
     modo, arg = sys.argv[1], sys.argv[2]
     js = "--json" in sys.argv
+    if modo == "contacto":
+        out = sys.argv[3] if len(sys.argv) > 3 and not sys.argv[3].startswith("--") else "contacto.jpg"
+        h = contacto(arg, out)
+        print(h if h else "no pude generar la hoja de contactos"); sys.exit(0 if h else 1)
     if modo == "obra":
         r = auditar_obra(arg, con_notas="--rapido" not in sys.argv)
     elif modo == "plano":
