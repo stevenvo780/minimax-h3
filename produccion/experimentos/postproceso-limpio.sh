@@ -2,7 +2,7 @@
 # EXPERIMENTO DE UN SOLO USO: atado a un fichero concreto con timestamp
 # NO es parte de la pipeline reutilizable. Se ejecuta una sola vez contra un archivo específico.
 set -u
-. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../../lib/comun.sh"
 
 # Fichero de entrada por parámetro (o default histórico bajo $DEST)
 F="${1:-$DEST/existencialismo-4p-736x416-58s-20260827-231735.mp4}"

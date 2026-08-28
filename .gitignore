@@ -6,7 +6,6 @@ upscalers/
 bin/
 
 # ── Material generado y de trabajo ────────────────────────────────────────
-salidas/
 old/
 produccion/obra/
 produccion/logs/
@@ -18,10 +17,12 @@ proyecto-minuto/montaje/
 proyecto-minuto/logs/
 proyecto-minuto/GENERACION_LISTA
 
+# medidas/ SI se versiona: son 108 KB de mediciones de VRAM
+# irrepetibles sin volver a gastar horas de GPU.
+
 # ── Subproductos ──────────────────────────────────────────────────────────
 *.avi
 *.mp4
 *.png
 *.wav
-*.csv
 __pycache__/

@@ -2,7 +2,7 @@
 # EXPERIMENTO DE UN SOLO USO: atado a la toma concreta en $MD/old/toma-larga-aberracion-*
 # NO es parte de la pipeline reutilizable. Se ejecuta una sola vez contra un archivo específico.
 set -u
-. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../../lib/comun.sh"
 
 # Comprobación de argumento de salida
 if [ -z "${1:-}" ]; then
