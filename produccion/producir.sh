@@ -134,8 +134,11 @@ while IFS=$'\t' read -r f marca; do
 done < "$OBRA/orden.txt"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
-SEC=$(awk "BEGIN{printf \"%.0f\", $i*$DUR}")
-FINAL="$DEST/$NOMBRE-${W}x${H}-${SEC}s-$STAMP.mp4"
+# El nombre se pone AL FINAL, con lo que el fichero es de verdad. Antes se
+# construia con W/H/FRAMES *pedidos*, asi que al reensamblar una obra vieja sin
+# repetir sus variables de entorno salia un nombre que mentia (p.ej.
+# "1376x768-18s" sobre un video de 736x416 y 58s).
+FINAL="$DEST/.$NOMBRE-montando-$STAMP.mp4"
 
 # ── Guarda: sin clips no hay nada que concatenar ───────────────────────────
 [ -s "$MONT/lista.txt" ] || { echo "FALLO: ningun clip llego al montaje. Revisa $PROD/logs/"; exit 1; }
@@ -165,6 +168,17 @@ else
   ff -y -v error -f concat -safe 0 -i "$MONT/lista.txt" -c copy "$FINAL"
 fi
 [ -f "$FINAL" ] || { echo "FALLO al ensamblar"; exit 1; }
+
+# Renombrar con la resolucion y duracion REALES del fichero producido.
+RWH=$(ffp -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$FINAL" 2>/dev/null)
+RSEC=$(ffp -v error -show_entries format=duration -of default=nw=1:nk=1 "$FINAL" 2>/dev/null)
+if [ -n "$RWH" ] && [ -n "$RSEC" ]; then
+  NUEVO="$DEST/$NOMBRE-${RWH%,*}x${RWH#*,}-$(awk "BEGIN{printf \"%.0f\", $RSEC}")s-$STAMP.mp4"
+  mv -f "$FINAL" "$NUEVO" && FINAL="$NUEVO"
+else
+  NUEVO="$DEST/$NOMBRE-$STAMP.mp4"; mv -f "$FINAL" "$NUEVO" && FINAL="$NUEVO"
+  echo "  aviso: no se pudo leer el fichero final para nombrarlo con sus medidas"
+fi
 echo "═══ LISTO: $FINAL ═══"
 ffp -v error -show_entries format=duration,size -show_entries stream=codec_type,width,height,nb_frames \
         -of default=noprint_wrappers=1 "$FINAL"
