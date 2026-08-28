@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A busy city street at night. Dense crowds flow past in both directions, reduced to streaks of motion blur under neon and shop light. In the exact centre one man in a grey coat stands perfectly still, facing the camera, in sharp focus while everything around him smears. Static camera, long exposure feel, cold neon palette.
+
+overall_soundscape:
+The layered roar of a crowded street: overlapping footsteps, fragments of unintelligible conversation, distant traffic, a passing siren far away.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

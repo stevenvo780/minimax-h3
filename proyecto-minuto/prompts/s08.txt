@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A vast field of stars above an utterly black ocean, the horizon barely suggested by a faint band where the water ends. The stars drift with an almost imperceptible slowness. Nothing else. Extreme wide shot, near-static, deep blacks and cold pinpoint whites.
+
+overall_soundscape:
+A near-total silence, with only the faintest low swell of distant water and a deep sub-bass room tone, almost inaudible.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

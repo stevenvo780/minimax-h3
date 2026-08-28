@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A hand hovers just short of a worn brass door handle in a dim hallway, fingers slightly trembling, not yet touching. Warm light spills from the gap beneath the door across the floorboards. Extreme close-up, shallow depth of field, static camera, warm and cold light in tension.
+
+overall_soundscape:
+A tense quiet, the faint sound of breathing held, the almost inaudible tick of a clock in another room.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] An empty dark-wood chair beside a tall window at first light. Pale grey dawn seeps through thin curtains that breathe slowly in a draft. Dust motes turn in the shaft of light. The room beyond is bare and shadowed. Static locked-off camera, wide shot, shallow depth of field, fine film grain, muted desaturated palette.
+
+overall_soundscape:
+A deep quiet room tone, the faint rustle of curtain fabric moving in the draft, a distant bird call outside, floorboards settling.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

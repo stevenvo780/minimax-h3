@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] An immense empty snowfield under a heavy pewter sky, flat to the horizon in every direction. A single tiny human figure in a dark coat stands off-centre, dwarfed by the emptiness. Loose snow streams across the ground in ribbons driven by wind. Extreme wide shot, static camera, cold blue-grey palette, natural grain.
+
+overall_soundscape:
+Steady low wind moving across open ground, the dry hiss of snow crystals skidding over hard crust, no other sound.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

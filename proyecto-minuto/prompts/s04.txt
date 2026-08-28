@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] Extreme close-up of a man's face, half lit by a single warm lamp, the other half sunk in shadow. His eyes move restlessly, searching something off-frame. His jaw tightens; he breathes shallowly. Every pore and line visible, shallow depth of field, static camera, chiaroscuro lighting.
+
+overall_soundscape:
+Close intimate room tone, the man's slow uneven breathing, the faint electrical hum of the lamp filament.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

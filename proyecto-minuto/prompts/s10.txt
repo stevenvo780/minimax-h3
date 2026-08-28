@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A long empty institutional corridor receding into the distance, pale walls and a worn floor, evenly spaced doors all closed. At the far end a single bright window burns white. The camera pushes forward slowly and steadily down the centre. Symmetrical composition, cold light, subtle vignette.
+
+overall_soundscape:
+The hollow reverberant ambience of a long empty hallway, a faint ventilation hum, one door closing somewhere far away.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

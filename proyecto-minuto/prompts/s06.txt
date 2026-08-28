@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] An empty café at closing time, chairs upturned on tables. A waiter in a white apron polishes a wine glass with precise mechanical repetition, his face blank, eyes unfocused. Mirrors on the far wall multiply him into the depth. Cold fluorescent light, static medium shot, desaturated.
+
+overall_soundscape:
+The squeak of cloth on glass repeating in an even rhythm, the low buzz of a fluorescent tube, a refrigeration compressor humming.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

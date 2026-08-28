@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] Extreme close-up of a gnarled tree root pushing up through wet black earth, its bark knotted and unsettlingly organic, glistening with moisture. Tiny insects move in the crevices. The focus is uncomfortably close, the shape almost fleshy. Shallow depth of field, static camera, damp green-brown palette.
+
+overall_soundscape:
+Damp forest floor ambience, water dripping slowly onto leaves, the small dry ticking of insects moving in bark.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

@@ -1,0 +1,27 @@
+# ── Pesos de modelos (51 GB) — nunca a git ────────────────────────────────
+diffusion_models/
+text_encoders/
+vae/
+upscalers/
+bin/
+
+# ── Material generado y de trabajo ────────────────────────────────────────
+salidas/
+old/
+produccion/obra/
+produccion/logs/
+proyecto-minuto/shots/
+proyecto-minuto/up-mp4/
+proyecto-minuto/wk/
+proyecto-minuto/claims/
+proyecto-minuto/montaje/
+proyecto-minuto/logs/
+proyecto-minuto/GENERACION_LISTA
+
+# ── Subproductos ──────────────────────────────────────────────────────────
+*.avi
+*.mp4
+*.png
+*.wav
+*.csv
+__pycache__/

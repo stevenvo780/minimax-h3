@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] The same steep scree slope at dawn, the mist now burned away. The man stands at the bottom beside the boulder, looking up toward the distant summit. Warm first light catches the side of his face and a faint, almost imperceptible smile forms. He is calm, unhurried. Wide shot, static camera, warm golden dawn light against cool rock.
+
+overall_soundscape:
+Early morning mountain air, a light breeze over stone, one distant bird call, the settling of a few loose pebbles.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

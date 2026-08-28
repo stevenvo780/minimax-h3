@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A man walks away from a dense static crowd of people standing in shadow, moving out from under an overhang into open daylight. He is seen from behind, his figure gradually brightening as he crosses into the light. The crowd behind him does not move. Wide shot, slow tracking behind him, contrast of shadow and clean daylight.
+
+overall_soundscape:
+The murmur of a still crowd fading behind, footsteps growing clearer on stone, open air ambience opening up ahead.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

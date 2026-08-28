@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A man strains to push an enormous rough grey boulder up a steep slope of loose scree, thick mist swallowing the summit above him. His whole body is braced, feet slipping, stones sliding away beneath him. He is tiny against the mountain. Wide shot, static camera, monochrome-leaning grey palette, heavy atmosphere.
+
+overall_soundscape:
+Loose stones sliding and clattering downslope, the man's laboured breathing, the low grinding of rock against rock, wind in the mist.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

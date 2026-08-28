@@ -1,0 +1,30 @@
+# ── EXISTENCIALISMO · anclado a frames prístinos ──────────────────────────
+# PROBLEMA RESUELTO: arrancar un tramo "limpio" (sin init-img) hacía que el
+# modelo reinventara la cara -> parecía otra persona. Arrancar encadenando
+# desde el tramo anterior acumulaba artefactos.
+# SOLUCIÓN: cada tramo arranca anclado a un frame de p01 (prístino, nitidez
+# 12.1). La identidad queda fijada por una imagen real y el ancla nunca se
+# degrada, así que tampoco acumula. Anclas distintas = poses distintas.
+#
+@ESCENA A man of about fifty-five with short grey-flecked dark hair receding slightly at the temples, a close-cropped salt-and-pepper beard, deep-set brown eyes with pronounced creases at the corners, a straight prominent nose and a narrow mouth, wearing a charcoal grey wool crewneck sweater over a dark collarless shirt. He sits in a dim book-lined study at dusk. A single warm desk lamp rakes across his face from the left, carving deep shadow down the right side of his face; tall shelves of worn hardbacks recede into darkness behind him. Medium close-up, static camera, shallow depth of field, fine film grain, dust motes drifting through the lamp beam. He looks directly into the lens. The same man throughout: identical face, identical beard, identical charcoal sweater, identical lamp position and identical room.
+@AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, the soft creak of a leather chair as he shifts his weight, and the clear, calm male dialogue spoken by the man.
+@MUSICA A sparse low sustained cello note held quietly beneath the dialogue, restrained and contemplative, continuous and unchanging in character.
+
+# ── tramo 1 · origen de las anclas (YA GENERADO) ──
+HABLA|Nadie te preguntó si querías nacer. Y sin embargo, aquí estás.|inicio|
+HABLA|Un cuchillo fue pensado para cortar antes de existir. Nosotros no.|encadena|
+HABLA|Primero existimos. Después decidimos qué somos.|encadena|
+HABLA|No hay plano previo al que ajustarse. Ni excusa que nos salve.|encadena|
+# ── tramo 2 · anclado a p01 frame 15 ──
+HABLA|Estamos condenados a ser libres.|ancla:anclas/a15.png|
+HABLA|Condenados, porque esta libertad no la pedimos.|encadena|
+HABLA|Y casi todos huimos. Al papel, a la costumbre, a lo que se espera.|encadena|
+HABLA|Sartre lo llamó mala fe: fingir que no podíamos elegir.|encadena|
+# ── tramo 3 · anclado a p01 frame 45 ──
+HABLA|Camus buscó una respuesta, y el mundo calló.|ancla:anclas/a45.png|
+HABLA|A ese silencio lo llamó el absurdo.|encadena|
+HABLA|Pero no concluyó en la desesperación.|encadena|
+HABLA|Sísifo empuja su roca sabiendo que volverá a caer.|encadena|
+# ── tramo 4 · anclado a p01 frame 75 ──
+HABLA|La lucha misma basta para llenar un corazón.|ancla:anclas/a75.png|
+HABLA|Hay que imaginar a Sísifo dichoso.|encadena|

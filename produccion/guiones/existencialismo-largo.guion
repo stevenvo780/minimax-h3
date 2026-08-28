@@ -1,0 +1,16 @@
+# ── EXISTENCIALISMO · toma larga anclada ──────────────────────────────────
+# La cadena de 5 eslabones acumulaba divergencia cromática (dispersión entre
+# canales 1.79 -> 2.88, monótona). Se corta reanclando a frames TARDÍOS y
+# prístinos de p01: máximo 2 eslabones, y la pose del ancla ya está evolucionada
+# así que el enganche parece continuación, no salto atrás.
+#
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a close-cropped salt-and-pepper beard, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A single warm key light from the left falls off sharply, leaving the right side of his face in deep shadow. Behind him there is only darkness: a completely black, empty, heavily out-of-focus background with no objects, no furniture, no walls, no texture and no discernible detail of any kind. Extremely shallow depth of field so everything except his face dissolves into smooth black. Static locked-off camera, no camera movement whatsoever, fine film grain. He looks directly into the lens. The same man throughout: identical face, identical beard, identical sweater, identical light.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
+@MUSICA A single sustained low cello note held quietly and continuously beneath the dialogue, unchanging throughout.
+
+HABLA|Nadie te preguntó si querías nacer. Y sin embargo, aquí estás. Un cuchillo fue pensado para cortar antes de existir. Nosotros, no.|inicio|
+HABLA|Primero existimos. Después, con lo que hacemos, decidimos qué somos. No hay plano previo al que ajustarse, ni excusa que nos salve.|encadena|
+HABLA|Estamos condenados a ser libres. Condenados, porque esta libertad no la pedimos. Y casi todos huimos: al papel, a la costumbre.|ancla:anclas/a180.png|
+HABLA|Sartre lo llamó mala fe. Fingir que no podíamos elegir. Camus buscó una respuesta, y el mundo calló.|encadena|
+HABLA|A ese silencio lo llamó el absurdo. Pero no concluyó en la desesperación. Sísifo empuja su roca sabiendo que volverá a caer.|ancla:anclas/a220.png|
+HABLA|Y sin embargo sigue empujando. La lucha misma basta para llenar un corazón. Hay que imaginar a Sísifo dichoso.|encadena|

@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A crossroads where two empty desert roads meet at dusk, cracked asphalt stretching to the horizon in four directions. A solitary man in a worn jacket stands at the exact centre, casting a long shadow. Dust lifts in slow spirals. Wide shot, low camera angle, warm amber light against deep blue shadow, cinematic.
+
+overall_soundscape:
+A dry desert wind, grit skittering across asphalt, the distant creak of a metal sign swinging on its post.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.

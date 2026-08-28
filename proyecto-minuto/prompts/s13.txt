@@ -1,0 +1,8 @@
+detailed_description:
+The target video is in realistic photographic style. [Shot 1] A lone figure stands at the very edge of a high cliff facing an advancing storm front, a wall of dark cloud and rain sweeping across the sea toward them. Their coat whips violently in the wind but they do not turn away, arms loose at their sides. Wide shot, low angle, dramatic storm light, sea spray in the air.
+
+overall_soundscape:
+A powerful gusting wind, the deep boom of heavy surf against the cliff base far below, distant rolling thunder approaching.
+
+non_diegetic_music:
+A sparse, restrained score: a single sustained cello note with occasional soft piano intervals, slow and contemplative, kept low in the mix, leaving long silences between phrases.
