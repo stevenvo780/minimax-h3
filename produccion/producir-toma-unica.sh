@@ -52,7 +52,8 @@ echo "    techo de VRAM: --max-vram $MAXV (deja libre el resto para el escritori
 vram_esperar 0 5000 600 || echo "    aviso: sigo sin margen holgado, arranco igual"
 
 T0=$SECONDS
-"$SD" -M vid_gen \
+# con_cerrojo: nunca dos generaciones a la vez (ver lib/comun.sh)
+con_cerrojo 7200 "$SD" -M vid_gen \
   --diffusion-model "$MODELO" \
   --vae "$MODELO_VAE" --audio-vae "$MODELO_AVAE" --llm "$MODELO_LLM" \
   -p "$PROMPT" -s "${SEED:-100}" \

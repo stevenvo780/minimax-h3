@@ -87,3 +87,29 @@ requiere() {
   for c in "$@"; do command -v "$c" >/dev/null 2>&1 || falta="$falta $c"; done
   [ -z "$falta" ] || { echo "faltan comandos requeridos:$falta" >&2; return 1; }
 }
+
+# ── Cerrojo de generacion ──────────────────────────────────────────────────
+# En un contenedor con 24 GB de RAM, DOS generaciones a la vez se matan entre
+# si: los modelos ocupan 33 GB repartidos entre RAM y swap y no caben dos.
+# Paso de verdad: una prueba y una comparacion A/B lanzadas en paralelo
+# murieron LAS DOS con SIGKILL del OOM killer, sin dejar nada util.
+# Toda generacion debe pasar por aqui.
+#
+#   con_cerrojo <segundos_de_espera> <comando...>
+con_cerrojo() {
+  local espera=$1; shift
+  local lock=${CERROJO:-${TMPDIR:-/tmp}/h3-generacion.lock}
+  local t=0
+  exec 9>"$lock" || { echo "cerrojo: no puedo abrir $lock" >&2; return 1; }
+  while ! flock -n 9; do
+    if [ "$t" -ge "$espera" ]; then
+      echo "cerrojo: otra generacion lleva mas de ${espera}s ocupando el turno" >&2
+      exec 9>&-; return 1
+    fi
+    [ "$t" = 0 ] && echo "cerrojo: hay otra generacion en curso, espero mi turno" >&2
+    sleep 10; t=$((t+10))
+  done
+  "$@"; local rc=$?
+  flock -u 9; exec 9>&-
+  return $rc
+}
