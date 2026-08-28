@@ -11,7 +11,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 MD=${MD:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
-DEST=${DEST:-$HOME/Vídeos}
+# HOME puede venir sin definir (cron, systemd, sudo sin -H); sin este respaldo
+# DEST valdria "/Vídeos" y los videos acabarian en la raiz del disco.
+DEST=${DEST:-${HOME:-/home/$(id -un)}/Vídeos}
 
 SDCLI=$MD/bin/sd-cli
 MODELO_DIFF=$MD/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf
