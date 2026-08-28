@@ -175,7 +175,27 @@ puntuan 87,7 con material fresco y 81,0 con material ya derivado, aunque el
 ultimo plano por si solo saque 92,9. Reanclar ataca esta; menos eslabones ataca
 la otra.
 
-**Conclusion operativa: el mejor video largo es el que no tiene ningun eslabon.**
+**El anclaje SI borra la deriva.** Medido sobre `obra/existencialismo`, 14 planos
+anclados a p01 cada cuatro. El exceso de borde sube dentro de cada tramo y cae a
+cero en cada ancla:
+
+```
+p01 +2.9   p02 +6.2   p03 +10.6   p04 +17.6     tramo 1
+p05 +6.7   p06 +8.8   p07 +10.8   p08 +18.3     tramo 2  <- ancla
+p09 +7.3   p10 +12.4  p11 +17.8   p12 +22.2     tramo 3  <- ancla
+p13 +6.4   p14 +11.2                            tramo 4  <- ancla
+```
+
+En un enlace normal el salto de bordes es −3 %. En los tres puntos de anclaje es
+**−16,2 %, −15,5 % y −17,3 %**: la deriva vuelve al punto de partida.
+
+**Techo de la toma: 685 frames = 28,5 s** a 512x288 (medido, `medidas/techo-frames-512x288.csv`).
+A 1020 frames sd-cli no consigue reservar el buffer de computo en VRAM.
+
+**Conclusion operativa para 1-2 minutos:** tomas de hasta 28,5 s, cada una
+**anclada** a un frame pristino distinto de la primera, **ninguna encadenada**.
+Asi no hay acumulacion en absoluto: cada toma empieza en cero. El corte entre
+tomas se suaviza con el fundido que ya hace `producir.sh` entre tramos.
 Ver `guiones/exis-toma-unica.guion`.
 
 ### Una palanca que se probo y se descarto
