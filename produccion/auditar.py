@@ -203,9 +203,14 @@ def fondo(video, muestras=5):
     prohibirlo. Describirlo en positivo ("a plain matte black backdrop") es lo
     que hay que comparar contra esto.
 
-    Se miden las dos franjas laterales, que es donde vive el fondo en un primer
-    plano. No basta el brillo medio: un sillon oscuro tiene media baja y se ve
-    igual. Lo que lo delata es la DESVIACION (hay estructura) y el pico."""
+    Se miden las cuatro ESQUINAS, no franjas laterales. Con franjas del 18% el
+    sujeto se cuela en la medida cuando ocupa mas encuadre, y entonces la cifra
+    dice "mas fondo" cuando lo que hay es mas cara: comparando dos variantes,
+    la que visiblemente tenia MEJOR fondo puntuaba peor por eso. Las esquinas
+    superiores e inferiores son el unico sitio donde el sujeto nunca llega.
+
+    No basta el brillo medio: un sillon oscuro tambien lo tiene bajo. Lo que
+    delata la estructura es la DESVIACION y el pico."""
     d = E.dur(video)
     T = tempfile.mkdtemp(prefix="fondo-")
     try:
@@ -217,7 +222,11 @@ def fondo(video, muestras=5):
                             "-i", video, "-frames:v", "1", "-update", "1", f],
                            capture_output=True)
             if not os.path.exists(f): continue
-            for crop in ("iw*0.18:ih:0:0", "iw*0.18:ih:iw*0.82:0"):
+            esquinas = ("iw*0.16:ih*0.22:0:0",              # sup izq
+                        "iw*0.16:ih*0.22:iw*0.84:0",         # sup der
+                        "iw*0.16:ih*0.22:0:ih*0.78",         # inf izq
+                        "iw*0.16:ih*0.22:iw*0.84:ih*0.78")   # inf der
+            for crop in esquinas:
                 r = E.run(["ffmpeg", "-v", "error", "-i", f, "-vf",
                            f"crop={crop},format=gray", "-f", "rawvideo", "-"])
                 if not r.stdout: continue
