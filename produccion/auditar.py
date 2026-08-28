@@ -5,6 +5,7 @@ Auditor de una obra: convierte "se ve acartonado" en una decision.
 Uso:  auditar.py obra     <dir_obra>            [--json] [--rapido]
       auditar.py plano    <fichero.avi>         [--json]
       auditar.py contacto <video> [salida.jpg]  hoja de contactos para MIRARLO
+      auditar.py audio    <video>               ruido real, separado del volumen
 
 Reutiliza las medidas de evaluar2.py (criterio anti-trampa del autor, intacto)
 y añade lo que faltaba: medir EL ESLABON, no solo el plano.
@@ -115,6 +116,36 @@ def auditar_obra(dir_obra, con_notas=True):
     finally:
         subprocess.run(["rm", "-rf", T])
 
+def audio(video):
+    """Suelo de ruido de verdad, no volumen.
+
+    evaluar2.audio_piso() toma el RMS global de la ventana mas silenciosa como
+    "suelo de ruido". Eso confunde una grabacion FUERTE con una ruidosa: medido,
+    los clips de prueba dan RMS -12/-15 dB (que evaluar2 puntua 0/10, "zumbido
+    evidente") y sin embargo su banda alta esta a -34/-38 dB, mas limpia que el
+    material de referencia del usuario, que esta a -32/-37.
+
+    Aqui el ruido se mide donde vive: por encima de 6 kHz, que en voz hablada
+    es casi todo suelo. Y el volumen se informa aparte, sin mezclarlo."""
+    def _rms(filtro):
+        r = subprocess.run(["ffmpeg", "-nostdin", "-v", "info", "-i", video, "-vn",
+                            "-af", filtro, "-f", "null", "-"],
+                           capture_output=True, text=True)
+        for l in r.stderr.splitlines():
+            if "RMS level dB" in l:
+                try: return float(l.split(":")[-1].strip())
+                except ValueError: return None
+        return None
+    global_rms = _rms("astats=metadata=1:reset=0")
+    hf         = _rms("highpass=f=6000,astats=metadata=1:reset=0")
+    res = {"rms_global_dB": global_rms, "ruido_alta_dB": hf}
+    if hf is not None:
+        # -32 dB o menos = limpio (es donde esta el material bueno del usuario)
+        # -22 dB = siseo audible
+        res["limpio"] = hf <= -30
+        res["nota_ruido"] = round(max(0.0, min(10.0, (-22 - hf) / 10 * 10)), 1)
+    return res
+
 def contacto(video, salida, n=9):
     """Hoja de contactos: n fotogramas repartidos, en rejilla, con el segundo
     rotulado. Existe porque evaluar2 mide degradacion y no belleza: un video
@@ -172,6 +203,12 @@ if __name__ == "__main__":
     if len(sys.argv) < 3: print(__doc__); sys.exit(2)
     modo, arg = sys.argv[1], sys.argv[2]
     js = "--json" in sys.argv
+    if modo == "audio":
+        a = audio(arg)
+        if js: print(json.dumps(a, indent=1)); sys.exit(0)
+        print(f"  {os.path.basename(arg)}  volumen {a['rms_global_dB']} dB · "
+              f"ruido>6kHz {a['ruido_alta_dB']} dB · "
+              f"{'limpio' if a.get('limpio') else 'con siseo'}"); sys.exit(0)
     if modo == "contacto":
         out = sys.argv[3] if len(sys.argv) > 3 and not sys.argv[3].startswith("--") else "contacto.jpg"
         h = contacto(arg, out)
