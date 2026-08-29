@@ -11,6 +11,10 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
 MD=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Steven pidio las piezas EN LA CARPETA DEL PROYECTO, no en ~/Videos: alli no
+# las ve. Sin esto, DEST cae en $HOME/Videos y la entrega aparece donde no la
+# esta mirando.
+export DEST=${DEST:-$(cd "$MD/.." && pwd)}
 FRAMES=${FRAMES:-345} W=${W:-736} H=${H:-416} PASOS=${PASOS:-20}
 FORMATOS=${FORMATOS:-detalle camara accion paisaje}
 

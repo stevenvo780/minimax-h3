@@ -182,5 +182,14 @@ DEST_F="$DEST/$NOMBRE-${RWH%,*}x${RWH#*,}-$(awk "BEGIN{printf \"%.0f\",$RS}")s-$
 mkdir -p "$DEST"; mv "$FINAL" "$DEST_F"
 echo "═══ LISTO: $DEST_F ═══"
 python3 "$PROD/auditar.py" contacto "$DEST_F" "$OBRA/contacto.jpg" >/dev/null && echo "    contactos: $OBRA/contacto.jpg"
-python3 "$PROD/auditar.py" habla "$DEST_F"
+# La cobertura de voz SOLO significa algo si la pieza tiene dialogo. En un
+# plano de manos o un paisaje no hay nadie hablando: el detector lee el cello y
+# el ambiente como voz continua, saca "voz 100.0%" y dictamina ATROPELLADO. Es
+# una falsa alarma del mismo tipo que el recorte central de evaluar2 — la medida
+# da por hecho el formato de retrato hablado.
+if printf '%s\n' "${TIPOS[@]}" | grep -qx 'habla'; then
+  python3 "$PROD/auditar.py" habla "$DEST_F"
+else
+  echo "  (sin tomas habladas: me salto la cobertura de voz, no aplica)"
+fi
 python3 "$PROD/auditar.py" audio "$DEST_F"
