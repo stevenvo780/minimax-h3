@@ -145,6 +145,16 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   más VRAM de la que el guardián tolera, el sistema mata la generación que él mismo autorizó:
   pasó, y costó una toma en el paso 13/20. Y ojo, **anclar engorda el buffer ~1,7 GB** sobre
   la ruta limpia — `vram_arg_trabajo` necesita saber si la toma va anclada.
+- **La barba erizada NO es falta de resolución: es el prompt.** `close-cropped` (al rape es
+  cerdoso por definición) más una luz dura y rasante dan pelos rectos y separados que se
+  recortan uno a uno contra el fondo — una barba postiza. Pedir la barba *llena y en mechones
+  blandos* con *luz grande y difusa* la convierte en pelo de verdad. Medido: el habla cuesta
+  −1,3 % de detalle fino, la codificación −1,4 %, y doblar la resolución sólo da +4,7 %.
+  Ninguno de los tres era la causa.
+- **Ojo: en la textura de la barba, la métrica va AL REVÉS que el ojo.** La barba blanda, que
+  se ve mucho mejor, mide **−4,2 %** de detalle fino. Y es correcto: cada pelo aislado contra
+  fondo negro es un borde de máximo contraste, así que lo erizado puntúa más alto. Optimizar
+  ese número lleva derecho a la barba de cepillo. **Aquí hay que mirar, no medir.**
 - **No des por buena una nota sin saber qué mide.** Tres medidas de este proyecto han dado
   falsas alarmas: `evaluar2` fuera del retrato hablado, la cobertura de voz en planos mudos, y
   un «audio 5/15» que en realidad decía que mis clips eran más limpios que la referencia.

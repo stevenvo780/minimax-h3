@@ -1,0 +1,17 @@
+# ── EXPERIMENTO BARBA · brazo C: barba BLANDA y luz SUAVE ─────────────────
+# Las tres primeras hipotesis (habla, codificacion, resolucion) dieron todas
+# cerca de cero: -1.3%, -1.4%, +4.7%. No falta detalle fino.
+#
+# Mirando la barba ampliada 3x se ve el problema real: los pelos SI estan, pero
+# salen rectos, radiales y separados, como cerdas de cepillo. Un pelo real se
+# apelmaza en mechones irregulares. Eso es lo "acartonado".
+#
+# Y lo pide mi propio prompt: "close-cropped" (al rape = cerdoso) y una luz dura
+# y rasante, que es lo que mas marca cada pelo suelto. Aqui cambian SOLO esas
+# dos cosas; misma semilla, misma resolucion, mismos pasos.
+@TIPO habla
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, the hair lying flat and slightly unkempt rather than bristling, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused key light from the left wraps gently around his face, with soft gradual shadow on the right side, no hard edges. He is seated against a plain matte black studio backdrop that fills the entire frame behind him. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds.
+@MUSICA A single sustained low cello note held quietly and continuously, unchanging throughout.
+
+TOMA|Primero existimos. Despues, con lo que hacemos, decidimos que somos.|inicio|
