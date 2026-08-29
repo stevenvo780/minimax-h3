@@ -1,13 +1,18 @@
-# ── FORMATO: detalle (detalle) ──────────────────────────────────────────────────────
-# 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
-# 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
+# ── FORMATO: detalle (primerisimo plano de objeto/manos) ──────────────────
+# CORREGIDO 2026-08-29 tras mirar la pieza de 56s: la mano derecha salia
+# malformada —dedos fundidos, proporciones imposibles— durante los 56 segundos
+# enteros, y ninguna metrica lo vio (0 manchas, ESTABLE, -4.2% de deriva).
 #
+# La causa estaba en el prompt: pedia DOS manos y que una "stays still". Una mano
+# inmovil y sin funcion es justo lo que el modelo dibuja peor: no tiene movimiento
+# que le de estructura y la resuelve como un bulto de dedos. Ahora se pide UNA
+# sola mano, y siempre haciendo algo.
 @TIPO detalle
-@ESCENA Weathered hands with prominent veins and short clean nails resting on an open hardback book on a dark polished wooden table, a warm desk lamp raking from the left, the page edges catching the light.
+@ESCENA A single weathered hand with prominent veins and short clean nails, alone on an open hardback book on a dark polished wooden table, a warm desk lamp raking from the left, the page edges catching the light. Only one hand is visible in the frame at any time.
 @AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.
 @MUSICA A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.
 
-TOMA|One hand slowly turns a single page, the paper lifting and settling. The other hand stays still.|inicio|
+TOMA|The hand slowly turns a single page, the paper lifting and settling.|inicio|
 TOMA|A fingertip traces slowly down the page, stops, and lifts away.|ancla|
-TOMA|Both hands rest still on the page, then one lifts slowly away.|ancla|
-TOMA|A single finger settles on the page and stays there.|ancla|
+TOMA|The hand slides slowly across the page and rests flat.|ancla|
+TOMA|The fingers curl in slowly and the hand lifts away from the page.|ancla|

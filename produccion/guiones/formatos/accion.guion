@@ -1,13 +1,18 @@
-# ── FORMATO: accion (accion) ──────────────────────────────────────────────────────
-# 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
-# 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
+# ── FORMATO: accion (figura moviendose en el espacio) ─────────────────────
+# CORREGIDO 2026-08-29 tras comparar la MISMA region toma a toma: el sujeto
+# saltaba de sitio y de escala en cada corte —toma 1 al borde izquierdo casi
+# fuera de cuadro, toma 2 centrado y grande, toma 3 mucho mas abajo—. Con camara
+# fija eso es un salto de continuidad en cada enlace, y ninguna metrica lo vio.
 #
+# La causa: cada toma pedia una accion distinta sin decir DONDE queda el sujeto,
+# asi que el modelo lo recomponia a su gusto. Ahora las cuatro fijan la misma
+# posicion y el mismo tamaño en cuadro, y solo cambia lo que hace alli.
 @TIPO accion
-@ESCENA A dim study at dusk lit only by a warm desk lamp on a wooden table, tall bookshelves behind, a window showing deep blue evening sky. A man of about fifty-five with a close-cropped salt-and-pepper beard, in a charcoal grey wool sweater,
+@ESCENA A dim study at dusk lit only by a warm desk lamp on a wooden table, tall bookshelves behind, a window showing deep blue evening sky. A man of about fifty-five with a full soft salt-and-pepper beard, in a charcoal grey wool sweater, stands at the table on the LEFT THIRD of the frame, seen from the waist up, the same distance from the camera throughout.
 @AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.
 @MUSICA A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.
 
-TOMA|walks slowly into frame from the left, stops beside the table, and looks down at the open book.|inicio|
-TOMA|reaches out, rests one hand on the table, and stands still looking down.|ancla|
-TOMA|stands still beside the table, looking down at the open book.|ancla|
-TOMA|turns his head slowly toward the window, then looks down again.|ancla|
+TOMA|He stands at the table in the left third of the frame and looks down at the open book.|inicio|
+TOMA|Still in the left third of the frame, at the same distance, he rests one hand on the table.|ancla|
+TOMA|Still in the left third of the frame, at the same distance, he turns his head slowly toward the window.|ancla|
+TOMA|Still in the left third of the frame, at the same distance, he looks back down at the book.|ancla|
