@@ -69,6 +69,20 @@ $MUSICA"
     sleep 20; t=$((t+20))
   done
   echo "  toma $i · $maxv ${ancla:+· anclada a $(basename "$ancla")}"
+  # Reintento ante OOM, como ya hacia producir.sh y yo no habia copiado.
+  # El pico de memoria NO esta en la difusion sino en el decodificado de video,
+  # que convierte los latentes en los 345 fotogramas de golpe. Medido: la toma 4
+  # completo los 20 pasos (1261 s) y el audio VAE, y murio justo ahi. Las tomas
+  # 1-3 pasaron ese punto por poco. Reintentar cuesta tiempo pero no calidad.
+  local intento=1
+  while [ $intento -le 3 ]; do
+  if [ $intento -gt 1 ]; then
+    echo "  toma $i: reintento $intento/3 tras OOM · esperando a que se asiente la memoria"
+    sleep 120
+    local w=0
+    while [ "$(ram_libre_mb)" -lt 10000 ] && [ $w -lt 600 ]; do sleep 20; w=$((w+20)); done
+    echo "  toma $i: $(ram_libre_mb) MiB libres, reintento"
+  fi
   local t0=$SECONDS
   con_cerrojo 10800 "$SD" -M vid_gen \
     --diffusion-model "$MODELO" --vae "$MODELO_VAE" \
@@ -81,9 +95,16 @@ $MUSICA"
     --max-vram "$maxv" --stream-layers \
     -o "$out.mp4" "${extra[@]}" > "$PROD/logs/$NOMBRE-t$i.log" 2>&1
   local real; real=$(sd_salida "$out.mp4")
-  [ -f "$real" ] || { echo "  toma $i FALLO tras $((SECONDS-t0))s"
-                      tr '\r' '\n' < "$PROD/logs/$NOMBRE-t$i.log" | tail -5 | sed 's/^/      /'; return 1; }
-  mv "$real" "$out.avi"; echo "  toma $i OK en $((SECONDS-t0))s"
+  if [ -f "$real" ]; then
+    mv "$real" "$out.avi"; echo "  toma $i OK en $((SECONDS-t0))s${ancla:+ (anclada)}"
+    return 0
+  fi
+  echo "  toma $i intento $intento fallo tras $((SECONDS-t0))s"
+  tr '\r' '\n' < "$PROD/logs/$NOMBRE-t$i.log" | tail -3 | sed 's/^/      /'
+  intento=$((intento+1))
+  done
+  echo "  toma $i FALLO DEFINITIVO tras 3 intentos"
+  return 1
 }
 
 # ── toma 1: limpia, y de ella salen las anclas ─────────────────────────────
