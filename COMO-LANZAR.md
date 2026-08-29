@@ -183,6 +183,12 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
 - **No compruebes un guion produciéndolo.** Usa `VALIDAR=1`, que además imprime el prompt
   exacto que recibe el modelo. Comprobar la sintaxis arrancando una generación real deja dos
   procesos peleándose por el cerrojo.
+- **El anclaje es incompatible con un movimiento de cámara continuo.** Cada toma anclada
+  arranca desde un fotograma de la toma 1, así que un dolly vuelve siempre a la distancia
+  inicial: en `formato-camara` el tamaño de la lámpara hace pequeño-mayor-**pequeño**-mayor a
+  lo largo del minuto, o sea que la cámara salta atrás en cada corte. Pedirle «continúa
+  avanzando» no sirve — no puede continuar desde donde no está. Para un movimiento continuo:
+  una sola toma (techo 14,4 s), o encadenar en vez de anclar y pagar la degradación.
 - **Un `Aborted (core dumped)` NO es un OOM de RAM: mira `produccion/logs/<pieza>-t<N>.log`.**
   La salida completa de `sd-cli` ya se guarda ahí, con el motivo exacto. En la consola la barra
   de progreso lo sobrescribe con retornos de carro y sólo queda la traza, que no dice nada. El

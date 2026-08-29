@@ -1,3 +1,21 @@
+# ── AVISO 2026-08-29: ESTE FORMATO TIENE UN DEFECTO DE METODO ─────────────
+# Mirando la pieza de 56s se ve que el dolly AVANZA Y RETROCEDE: el tamaño de la
+# lampara va pequeño(2s) - mayor(9s) - PEQUEÑO OTRA VEZ(16s) - mayor(23s) -
+# pequeño(30s) - el mayor(37s) - pequeño(44s). La camara pega un salto atras en
+# cada corte.
+#
+# No es el prompt: es que EL ANCLAJE ES INCOMPATIBLE CON UN MOVIMIENTO DE CAMARA
+# CONTINUO. Cada toma anclada arranca desde un fotograma de la TOMA 1, asi que
+# siempre vuelve a la distancia inicial. Pedirle "continua avanzando" no sirve:
+# el modelo no puede continuar desde donde no esta.
+#
+# Salidas posibles, ninguna probada todavia:
+#   a) una sola toma (techo de 345 fotogramas = 14.4 s de dolly, y se acabo)
+#   b) encadenar en vez de anclar para ESTE formato, aceptando que encadenar
+#      degrada (1 plano 95.0 -> 4 planos 68.7) a cambio de continuidad de camara
+#   c) que cada toma sea un encuadre FIJO distinto en vez de un movimiento, y
+#      que el avance lo den los cortes y no la camara
+#
 # ── FORMATO: camara (camara) ──────────────────────────────────────────────────────
 # 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
 # 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
