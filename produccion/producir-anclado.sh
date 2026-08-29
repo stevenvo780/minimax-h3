@@ -41,8 +41,11 @@ FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
 # cuda0=7 a 4 y murio igual) ni la cache de pagina (el desglose del cgroup dio
 # anon 17.6 GB contra file 3.5 GB). Era arrancar sin sitio, sin mas.
 #
-# 16000 deja los 14.2 medidos mas margen para el pico del VAE del final.
-RAM_NECESARIA=${RAM_NECESARIA:-16000}
+# CORREGIDO otra vez: 14.2 GB era un muestreo cada 5 s que se perdia el pico.
+# Muestreando a 1 Hz y guardando el maximo, sd-cli llega a 19.3 GB y el cgroup
+# toca su techo de 24576 MB exacto. Con ~5 GB de otros procesos, NO CABE: el
+# margen real es cero. Por eso 19500, que es casi todo el contenedor.
+RAM_NECESARIA=${RAM_NECESARIA:-19500}
 
 MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 

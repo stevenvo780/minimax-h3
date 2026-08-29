@@ -183,6 +183,14 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
 - **No compruebes un guion produciéndolo.** Usa `VALIDAR=1`, que además imprime el prompt
   exacto que recibe el modelo. Comprobar la sintaxis arrancando una generación real deja dos
   procesos peleándose por el cerrojo.
+- **`sd-cli` llega a 19,3 GB de RAM y el contenedor tiene 24. El margen es CERO.** Medido
+  muestreando a **1 Hz** y guardando el máximo; muestreando cada 5 s salían 14,2 GB, porque el
+  pico se escapaba entre muestras. **Si mides un pico, muestrea rápido o no lo estás midiendo.**
+- **Los clips CORTOS son menos fiables que los largos, al revés de lo que parece.** Con pocos
+  fotogramas el buffer es pequeño, la fórmula reparte el hueco al modelo y sube `cuda0`; ahí
+  aparecieron cinco OOM seguidos en la misma toma a 107 fotogramas, mientras la configuración de
+  **345 fotogramas lleva ~20 tomas seguidas sin un fallo**. Para probar un prompt, usa la
+  configuración probada aunque tarde más: una prueba «barata» que no termina sale carísima.
 - **Antes de culpar a la VRAM de un OOM, mira si es de RAM.** El cgroup tiene 24 GB y `sd-cli`
   necesita **14,2 GB medidos**; el resto de procesos más el kernel y el driver se comen ~10 GB.
   Los umbrales de espera estaban a ojo (8 GB para arrancar, 10 para reintentar), así que el
