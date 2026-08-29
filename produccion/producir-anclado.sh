@@ -41,11 +41,19 @@ FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
 # cuda0=7 a 4 y murio igual) ni la cache de pagina (el desglose del cgroup dio
 # anon 17.6 GB contra file 3.5 GB). Era arrancar sin sitio, sin mas.
 #
-# CORREGIDO otra vez: 14.2 GB era un muestreo cada 5 s que se perdia el pico.
-# Muestreando a 1 Hz y guardando el maximo, sd-cli llega a 19.3 GB y el cgroup
-# toca su techo de 24576 MB exacto. Con ~5 GB de otros procesos, NO CABE: el
-# margen real es cero. Por eso 19500, que es casi todo el contenedor.
-RAM_NECESARIA=${RAM_NECESARIA:-19500}
+# TERCERA correccion, y la que vale. Muestreando a 1 Hz sale un pico de 19.3 GB,
+# y de ahi puse 19500... que NUNCA se alcanza: con la sesion del usuario y sus
+# herramientas siempre hay 3-5 GB ocupados, asi que el script se quedaba
+# esperando una condicion imposible y la maquina parecia parada. Steven lo vio
+# antes que yo: "veo la PC quieta".
+#
+# El razonamiento tambien estaba mal: ese pico de 19.3 GB INCLUYE cache mapeada,
+# que el kernel va reclamando segun sd-cli crece. Comparar un pico que incluye
+# cache contra "RAM libre" es comparar cosas distintas.
+#
+# 12000 es alcanzable y sigue siendo generoso: las ~20 tomas que salieron bien
+# arrancaron con el umbral viejo de 8000. No hace falta mas.
+RAM_NECESARIA=${RAM_NECESARIA:-12000}
 
 MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 
