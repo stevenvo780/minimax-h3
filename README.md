@@ -346,6 +346,8 @@ calidad/              MEDIR — todo junto, ya no repartido
   evaluar2.py          idem — OJO: sólo vale para retrato hablado
   comparar-formatos.sh tabla comparable ENTRE formatos distintos
   medir-barba.py       detalle fino en una zona concreta
+  revisar.py           laminas para MIRAR: lo semantico no lo ve
+                       ninguna metrica (manos, identidad, continuidad)
   deriva.sh            deriva a lo largo de una cadena
 
 herramientas/         piezas sueltas de un solo uso

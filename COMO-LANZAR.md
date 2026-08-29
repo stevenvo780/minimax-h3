@@ -85,6 +85,35 @@ produccion/auditar.py estabilidad video.avi  deriva, SIN suponer que hay una car
 produccion/comparar-formatos.sh              tabla comparable entre formatos
 ```
 
+### Lo que NINGUNA métrica de este proyecto ve
+
+Comprobado el 2026-08-29 mirando las piezas ya medidas:
+
+| pieza | lo que dicen las métricas | lo que se ve al mirar |
+|---|---|---|
+| `formato-detalle` | 0 manchas · ESTABLE · −4,2 % | la **mano derecha está malformada** los 56 s: dedos fundidos, proporciones imposibles |
+| `formato-accion` | 0 manchas · deriva leve | el **sujeto salta de sitio y de escala** en cada corte, y su cara cambia |
+
+Las dos puntúan perfecto. Son defectos **semánticos** —anatomía, identidad,
+continuidad— y el procesado de señal es ciego a ellos por construcción.
+
+**Se intentó detectarlos por señal y NO funciona.** Se comparó la mediana temporal
+de cada toma para cazar la incoherencia entre tomas: la pieza mala dio 1,81 % de
+diferencia y la buena 3,87 %, o sea **al revés**. Dos imágenes pueden diferir
+poquísimo en píxeles y muchísimo en significado. No lo reintentes.
+
+```bash
+calidad/revisar.py video.mp4 --obra produccion/obra/<nombre> --zona cara
+```
+
+Genera la tira de 12 momentos y el zoom de la misma región en cada toma — que es
+lo que delata el salto de continuidad. **Y hay que mirarlas.**
+
+**Quién puede mirar:** sólo Claude. `delegar_a_cloud` acepta únicamente texto, así
+que Gemini, Codex y MiniMax **no pueden ver un fotograma** en este montaje: sólo
+reciben la descripción que uno les escriba, que es justo el eslabón que falla. Sirven
+para escribir el código del detector, no para revisar la imagen.
+
 **Dos medidas mienten fuera del retrato hablado, y hay que saberlo:**
 
 - `evaluar2` recorta **siempre el centro** (donde está la cara en un retrato) y compara sólo
