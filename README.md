@@ -82,6 +82,19 @@ FORMATOS="muda paisaje" produccion/formatos.sh   # sólo algunos
 Es resumible: salta el formato que ya tenga su `.mp4`. Van **en serie a propósito** — dos
 generaciones concurrentes se mataron entre ellas por OOM.
 
+#### Resultado medido de los cuatro formatos (56 s, 4 tomas ancladas, 736x416)
+
+| formato | manchas | deriva tono | deriva bordes | veredicto |
+|---|---|---|---|---|
+| `paisaje` | 0 | +1,9 % | −0,2 % | **ESTABLE** |
+| `camara` | 0 | +2,7 % | +2,0 % | **ESTABLE** |
+| `detalle` | 0 | −2,8 % | −4,2 % | **ESTABLE** |
+| `accion` | 0 | −2,1 % | +5,2 % | deriva leve |
+
+Cero manchas en ~5400 fotogramas escaneados. Las versiones de 56 s salen **mejor** que las de
+28 s (`camara` y `paisaje` venían de DERIVA): con la nivelación de luminancia actuando en tres
+enlaces en vez de uno, la pieza queda mucho mejor equilibrada.
+
 ### Revisar un guion sin gastar GPU
 
 ```bash
