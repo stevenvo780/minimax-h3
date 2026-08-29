@@ -252,6 +252,13 @@ def fondo(video, muestras=5):
     finally:
         subprocess.run(["rm", "-rf", T])
 
+# AVISO sobre falsos positivos, comprobado mirando los fotogramas:
+# en un plano HABLADO, unos labios fruncidos formando una vocal son una mancha
+# pequeña de rojo muy saturado, y disparan este detector igual que una aberracion
+# de croma. Paso el 2026-08-29: una pieza de retrato dio "2 manchas" y las dos
+# eran su boca. Antes de dar por mala una pieza por esto, EXTRAE el fotograma y
+# MIRALO — con "auditar.py contacto" o un ffmpeg -ss. Una aberracion de verdad
+# es un parche de color fuera del tono de la piel; los labios no.
 def manchas(video):
     """Detecta ABERRACIONES DE COLOR localizadas: manchas que aparecen y se van.
 
