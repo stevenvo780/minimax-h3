@@ -113,3 +113,27 @@ con_cerrojo() {
   flock -u 9; exec 9>&-
   return $rc
 }
+
+# ── Guardia de memoria ─────────────────────────────────────────────────────
+# El contenedor tiene 24 GB y una generacion usa casi todos. Medir mientras
+# genera (evaluar2 lanza decenas de ffmpeg) se lleva el resto y el OOM killer
+# mata la generacion. Paso de verdad: la toma 3 murio en el paso 16/20 tras 18
+# minutos de GPU porque yo estaba midiendo las tomas 1 y 2 en paralelo.
+#
+#   ram_libre_mb            -> MiB disponibles dentro del cgroup
+#   hay_generacion_en_curso -> 0 si hay una generacion viva
+ram_libre_mb() {
+  local max cur
+  max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
+  [ "$max" = max ] && max=$(awk '/MemTotal/{print $2*1024}' /proc/meminfo)
+  cur=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
+  echo $(( (max - cur) / 1048576 ))
+}
+
+hay_generacion_en_curso() {
+  local lock=${CERROJO:-${TMPDIR:-/tmp}/h3-generacion.lock}
+  [ -e "$lock" ] || return 1
+  exec 8>"$lock" 2>/dev/null || return 1
+  if flock -n 8; then flock -u 8; exec 8>&-; return 1; fi
+  exec 8>&-; return 0
+}

@@ -60,6 +60,14 @@ $MUSICA"
   # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.
   local maxv; maxv=$(vram_arg_trabajo 0 "$FRAMES" "$W" "$H")
   vram_esperar 0 5000 900 || echo "  aviso: margen de VRAM justo, arranco igual"
+  # Esperar tambien a la RAM: una generacion usa casi los 24 GB del contenedor y
+  # arrancar sin sitio la mata el OOM killer a mitad. Paso de verdad: la toma 3
+  # murio en el paso 16/20 tras 18 min de GPU porque habia mediciones en paralelo.
+  local t=0
+  while [ "$(ram_libre_mb)" -lt 8000 ] && [ $t -lt 900 ]; do
+    [ $t = 0 ] && echo "  esperando RAM: solo $(ram_libre_mb) MiB libres de los 8000 que hacen falta"
+    sleep 20; t=$((t+20))
+  done
   echo "  toma $i · $maxv ${ancla:+· anclada a $(basename "$ancla")}"
   local t0=$SECONDS
   con_cerrojo 10800 "$SD" -M vid_gen \
