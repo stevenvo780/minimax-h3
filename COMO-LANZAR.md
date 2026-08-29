@@ -191,6 +191,14 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   aparecieron cinco OOM seguidos en la misma toma a 107 fotogramas, mientras la configuración de
   **345 fotogramas lleva ~20 tomas seguidas sin un fallo**. Para probar un prompt, usa la
   configuración probada aunque tarde más: una prueba «barata» que no termina sale carísima.
+- **La huella la fija el MODELO MAPEADO, no la configuración.** `sd-cli` mapea los GGUF en
+  memoria; esas páginas cuentan como `file` en el cgroup y **no se pueden liberar** mientras se
+  usan. Con la generación en marcha: `anon` 8,1 GB + `file` **12,9 GB** + kernel/slab 5,2 GB, y
+  de ahí sale el pico de 19,3 GB. **Ningún ajuste de los scripts baja eso**: las palancas reales
+  son un modelo más pequeño o un cgroup más grande.
+  *Ojo con medirlo mal*: un muestreo tomado justo después de matar un proceso daba `file` 3,5 GB
+  y llevó a descartar la caché por error. La caché tarda en volver a llenarse — **mide con la
+  generación en régimen, no recién arrancada**.
 - **Antes de culpar a la VRAM de un OOM, mira si es de RAM.** El cgroup tiene 24 GB y `sd-cli`
   necesita **14,2 GB medidos**; el resto de procesos más el kernel y el driver se comen ~10 GB.
   Los umbrales de espera estaban a ojo (8 GB para arrancar, 10 para reintentar), así que el
