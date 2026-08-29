@@ -46,6 +46,28 @@ params_defecto() {
 # Sin -nostdin, ffmpeg lee del stdin del bucle `while read` que lo invoca y se
 # come líneas del guion: planos que desaparecen sin un solo mensaje de error.
 # Usar ff/ffp en lugar de ffmpeg/ffprobe en TODO el proyecto.
+# ── comprobacion de herramientas ───────────────────────────────────────────
+# ffmpeg y ffprobe NO son opcionales: sin ellos no hay extraccion de anclas ni
+# montaje. Se comprueba AL ARRANCAR y no al usarlos, porque el primer uso real
+# ocurre despues de generar la toma 1: ~23 minutos de GPU tirados para morir
+# con "ffmpeg: command not found". Medido — paso de verdad el 2026-08-29,
+# cuando los binarios vivian en un venv del scratchpad de la sesion y este se
+# quedo fuera del PATH del proceso de produccion.
+exigir_herramientas() {
+  local faltan=()
+  local h
+  for h in "$@"; do command -v "$h" >/dev/null 2>&1 || faltan+=("$h")
+  done
+  [ ${#faltan[@]} -eq 0 ] && return 0
+  {
+    echo "FALTAN HERRAMIENTAS: ${faltan[*]}"
+    echo "  PATH=$PATH"
+    echo "  Instalalas o ponlas en el PATH antes de producir. Sin ellas la"
+    echo "  generacion correria igual y moriria al extraer anclas o al montar."
+  } >&2
+  return 1
+}
+
 ff()  { ffmpeg -nostdin "$@"; }
 ffp() { ffprobe "$@"; }
 

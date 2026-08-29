@@ -18,6 +18,7 @@ NOMBRE=${2:-$(basename "$GUION" .guion)}
 SEED=${SEED:-100}
 
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+exigir_herramientas ffmpeg ffprobe || exit 1
 params_defecto 1376 768 107 20
 PROD=$MD/produccion
 

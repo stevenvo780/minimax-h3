@@ -20,6 +20,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+exigir_herramientas ffmpeg ffprobe || exit 1
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/compat.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/prompt.sh"
