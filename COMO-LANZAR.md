@@ -163,6 +163,11 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
 - **No edites un script mientras corre.** Bash relee por offset de bytes. Si tienes que
   cambiarlo con una tanda viva, escribe a un temporal y `mv` encima: el `rename` es atómico y
   el proceso vivo conserva su inode. La tanda siguiente ya coge la versión nueva.
+- **Nunca mates procesos con `pkill -f` ni `pgrep -f`.** El patrón hace match con **tu propia
+  línea de comandos**, así que te matas a ti mismo. Ha pasado **dos veces** en este proyecto: una
+  con `pkill -f` y otra, ya documentada la primera, con `pgrep -f` dentro de un `for`. Saca los
+  PID por otra vía (`nvidia-smi --query-compute-apps`, o el PID que guardaste al lanzar) y mata
+  por PID.
 - **No midas mientras genera.** Escanear todos los fotogramas de un clip mientras el modelo
   decodifica el VAE mató una toma en el paso 16/20: 18 minutos de GPU. Durante una generación
   la RAM del cgroup baja a decenas de MiB. `comparar-formatos.sh` se niega solo; para forzarlo

@@ -48,6 +48,7 @@ vram_arg() {
   techo=$(vram_techo "$idx" "${2:-$VRAM_FRACCION}") || { echo "cuda${idx}=2"; return 0; }
   g=$(( techo / 1024 ))
   [ "$g" -lt 1 ] && g=1
+  [ "$g" -gt "$VRAM_TOPE_GB" ] && g=$VRAM_TOPE_GB
   echo "cuda${idx}=${g}"
 }
 
@@ -110,6 +111,21 @@ VRAM_MIB_POR_PXFRAME=${VRAM_MIB_POR_PXFRAME:-0.000056}
 # tenerlo en cuenta — es justo lo que tumbo la toma 2.
 VRAM_MIB_POR_PXFRAME_ANCLA=${VRAM_MIB_POR_PXFRAME_ANCLA:-0.000072}
 
+# Tope duro del modelo residente. NO es por VRAM: es por RAM.
+#
+# Con --stream-layers los pesos viven en RAM y --max-vram dice cuanto se cachea
+# en la tarjeta. Un presupuesto alto no acelera nada —medido sobre 12 tomas: de
+# cuda0=1 a cuda0=4 no se gana un segundo, porque el cuello es el computo— pero
+# el cgroup de 24 GB va justo: sd-cli solo necesita ~17 GB y lleva 12 OOM
+# acumulados. Con clips CORTOS el buffer es pequeño y la formula llegaba a pedir
+# cuda0=7-8, justo cuando aparecieron dos OOM seguidos en la misma toma.
+#
+# No esta PROBADO que ese cuda0 alto sea la causa: los datos de RSS que tengo se
+# contradicen (cuda0=1 dio 16.9 GB y cuda0=4 dio 12.0 GB, pero no eran corridas
+# comparables). Como pedir menos NO cuesta velocidad, el tope es un seguro
+# gratis: si era eso, lo arregla; si no, no se pierde nada.
+VRAM_TOPE_GB=${VRAM_TOPE_GB:-4}
+
 # vram_arg_trabajo <idx> <frames> <W> <H> [anclada]
 # Igual que vram_arg pero reservando antes lo que se va a llevar el buffer.
 # El quinto argumento, si es 1, usa la constante de la ruta anclada.
@@ -127,5 +143,6 @@ vram_arg_trabajo() {
   # Nunca por debajo de 1 GB ni por encima del techo normal: con 1 GB el modelo
   # va casi todo en streaming, que es lento pero cabe siempre.
   [ "$g" -lt 1 ] && g=1
+  [ "$g" -gt "$VRAM_TOPE_GB" ] && g=$VRAM_TOPE_GB
   echo "cuda${idx}=${g}"
 }
