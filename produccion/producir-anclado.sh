@@ -53,7 +53,7 @@ FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
 #
 # 12000 es alcanzable y sigue siendo generoso: las ~20 tomas que salieron bien
 # arrancaron con el umbral viejo de 8000. No hace falta mas.
-RAM_NECESARIA=${RAM_NECESARIA:-12000}
+RAM_NECESARIA=${RAM_NECESARIA:-8000}
 
 MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 

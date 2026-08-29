@@ -200,9 +200,14 @@ ram_libre_mb() {
   max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
   [ "$max" = max ] && max=$(awk '/MemTotal/{print $2*1024}' /proc/meminfo)
   cur=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
-  inact=$(awk '/^inactive_file /{print $2}' /sys/fs/cgroup/memory.stat 2>/dev/null)
-  [ -z "$inact" ] && inact=0
-  echo $(( (max - cur + inact) / 1048576 ))
+  # NO se descuenta inactive_file. Es tentador —la cache es reclamable y sin
+  # descontarla esta cuenta reporta "2 MiB libres" con la generacion corriendo
+  # tan campante— pero al descontarla la cifra SUBE, y todos los umbrales de
+  # espera estan calibrados contra la cuenta pesimista. Se probo el 2026-08-29:
+  # con la version "correcta" el guardian quedo mas PERMISIVO de lo que era y
+  # volvieron los OOM. La cuenta pesimista funciona como margen de seguridad.
+  # Si algun dia se cambia, hay que recalibrar los umbrales A LA VEZ.
+  echo $(( (max - cur) / 1048576 ))
 }
 
 hay_generacion_en_curso() {
