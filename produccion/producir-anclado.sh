@@ -86,7 +86,9 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   local extra=(); [ -n "$ancla" ] && extra+=(--init-img "$ancla")
   # Consciente del tamaño del trabajo: el buffer de computo crece con
   # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.
-  local maxv; maxv=$(vram_arg_trabajo 0 "$FRAMES" "$W" "$H")
+  # La ruta anclada engorda el buffer ~1.7 GB: hay que decirselo al presupuesto
+  # o autoriza mas modelo del que cabe y el guardian corta la toma a medias.
+  local maxv; maxv=$(vram_arg_trabajo 0 "$FRAMES" "$W" "$H" "$([ -n "$ancla" ] && echo 1 || echo 0)")
   vram_esperar 0 5000 900 || echo "  aviso: margen de VRAM justo, arranco igual"
   # Esperar tambien a la RAM: una generacion usa casi los 24 GB del contenedor y
   # arrancar sin sitio la mata el OOM killer a mitad. Paso de verdad: la toma 3

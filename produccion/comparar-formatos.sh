@@ -12,8 +12,7 @@
 #  Uso:  comparar-formatos.sh [patron]     (por defecto formato-*.mp4)
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
-MD=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-. "$MD/lib/comun.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"   # MD lo define comun.sh
 exigir_herramientas ffmpeg ffprobe || exit 1
 A="$MD/produccion/auditar.py"
 PAT=${1:-formato-*.mp4}
