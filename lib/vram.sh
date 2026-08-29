@@ -94,6 +94,15 @@ vram_informe() {
 # El 4.5e-5 anterior venia de inferir el buffer a partir de que cabia o no cabia,
 # no de medirlo, y se quedaba un 25% corto. Con el, el presupuesto autorizaba mas
 # modelo del que cabia junto al escritorio.
+# MEDIDO 2026-08-29 sobre 12 tomas de 345f a 736x416, cronometradas de verdad:
+#   toma limpia   (cuda0=3 y 4) -> 1274, 1276, 1278, 1315 s   media ~1286 s
+#   toma anclada  (cuda0=1, 2 y 4) -> 1329, 1338, 1342, 1343 s media ~1338 s
+# Es decir: el presupuesto de VRAM NO afecta a la velocidad en esta carga. Pasar
+# de cuda0=1 a cuda0=4 no gana un segundo; lo que cuesta es ANCLAR, un ~4%.
+# Con --stream-layers el cuello es el computo, no donde vivan los pesos.
+#
+# Consecuencia practica: pedir poca VRAM sale GRATIS. Ante la duda, pedir menos
+# y dejarle mas margen al usuario, que era su unica condicion.
 VRAM_MIB_POR_PXFRAME=${VRAM_MIB_POR_PXFRAME:-0.000056}
 
 # Anclar con --init-img engorda el buffer ~1.7 GB sobre la ruta limpia: el frame
