@@ -52,6 +52,27 @@ for t in "${TIPOS[@]}"; do
   tipo_valido "$t" || { echo "tipo de plano desconocido en el guion: '$t' (validos: $PROMPT_TIPOS)"; exit 1; }
 done
 
+# ── VALIDAR=1: comprobar el guion sin gastar un segundo de GPU ─────────────
+# Antes no habia forma de revisar un guion sin producirlo. Comprobar "¿parsea
+# bien esto?" arrancaba una generacion de verdad, que ademas competia por el
+# cerrojo con la tanda en curso. Con VALIDAR=1 se hace todo el trabajo previo
+# —cabecera, tipos, prompts— se imprimen los prompts y se sale antes de tocar
+# la GPU. Sirve tambien para LEER el prompt exacto que recibira el modelo, que
+# es lo que de verdad hay que revisar cuando un plano sale raro.
+if [ "${VALIDAR:-0}" = 1 ]; then
+  echo "═══ VALIDACION de $GUION (no se genera nada) ═══"
+  echo "    tomas: $N · tipos: $(printf '%s ' "${TIPOS[@]}")"
+  for i in "${!CONTENIDOS[@]}"; do
+    n=$((i+1))
+    echo "───── toma $n [${TIPOS[$i]}] ─────"
+    construir_prompt "${TIPOS[$i]}" "$ESCENA" "${CONTENIDOS[$i]}" "$AMBIENTE" "$MUSICA" \
+      || { echo "  FALLO construyendo el prompt de la toma $n"; exit 1; }
+    echo
+  done
+  echo "═══ guion valido ═══"
+  exit 0
+fi
+
 SEG=$(awk "BEGIN{printf \"%.1f\", $FRAMES/24}")
 echo "═══ ANCLADO: $NOMBRE · $N tomas de ${SEG}s = $(awk "BEGIN{printf \"%.0f\", $N*$FRAMES/24}")s ═══"
 echo "    ${W}x${H} · ${FRAMES}f · ${PASOS} pasos · $(basename "$MODELO")"

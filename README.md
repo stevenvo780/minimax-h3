@@ -37,6 +37,7 @@ produccion/preview.sh existencialismo    # publica cada plano terminado + un pre
 Cabecera (una vez), que alimenta las tres secciones del prompt del modelo:
 
 ```
+@TIPO       tipo de plano por defecto (opcional, por defecto `habla`)
 @ESCENA     descripción física del sujeto, la luz y el encuadre (en inglés)
 @AMBIENTE   overall_soundscape
 @MUSICA     non_diegetic_music
@@ -45,9 +46,55 @@ Cabecera (una vez), que alimenta las tres secciones del prompt del modelo:
 Y una línea por plano:
 
 ```
-HABLA|<diálogo en español>|<modo>|<encuadre opcional>
+TOMA|<contenido>|<modo>|<tipo opcional>
+HABLA|<diálogo en español>|<modo>|<tipo opcional>    # equivale a TOMA con @TIPO habla
 BROLL|<ruta relativa a proyecto-minuto/ o absoluta>
 ```
+
+`TOMA|` es la forma general; `HABLA|` se mantiene porque los guiones antiguos la usan. El
+cuarto campo permite **mezclar tipos dentro de un mismo guion**: una toma hablada, luego un
+detalle de las manos, luego un plano general, sin salir del mismo `.guion`.
+
+### Tipos de plano
+
+El pipeline nació para un único formato —una persona hablando de frente— con el prompt
+escrito a mano dentro del script de producción. Eso hacía imposible cualquier plano sin
+diálogo. Ahora el tipo es un parámetro (`lib/prompt.sh`), y añadir uno es añadir un `case`
+y nada más.
+
+| Tipo | Qué genera | Cuándo usarlo |
+|---|---|---|
+| `habla` | retrato con diálogo sincronizado | la voz la dispara la marca `<d>[Spanish]…</d>`; sin ella el modelo no habla |
+| `muda` | persona en plano, sin hablar | reacción, escucha, silencio. **Es el más nítido de los seis** |
+| `accion` | algo ocurre, con sujeto o sin él | figura que entra, se mueve, se detiene |
+| `detalle` | primerísimo plano de un objeto o parte del cuerpo | manos, un libro. Sin rostro |
+| `paisaje` | espacio sin personas | atmósfera, luz, establecimiento |
+| `camara` | el movimiento **es** el sujeto | el contenido describe la trayectoria del dolly |
+
+Los seis se generaron y se midieron (107 fotogramas, 736x416, 20 pasos): **ninguno produjo
+manchas de color**. Para producir los cuatro más distintos entre sí de una tanda:
+
+```bash
+produccion/formatos.sh                       # detalle, camara, accion, paisaje
+FORMATOS="muda paisaje" produccion/formatos.sh   # sólo algunos
+```
+
+Es resumible: salta el formato que ya tenga su `.mp4`. Van **en serie a propósito** — dos
+generaciones concurrentes se mataron entre ellas por OOM.
+
+### Revisar un guion sin gastar GPU
+
+```bash
+VALIDAR=1 produccion/producir-anclado.sh mi.guion x
+```
+
+Comprueba la cabecera y los tipos, **imprime el prompt exacto que recibirá el modelo** y sale
+antes de tocar la GPU. Es la forma de revisar por qué un plano sale raro: casi siempre el
+prompt montado no dice lo que uno creía.
+
+Sin esto, comprobar «¿parsea bien este guion?» arrancaba una generación de verdad, que además
+competía por el cerrojo con la tanda en curso. `pruebas/checks/guiones.sh` valida así los 11
+guiones del repo en cada humo.
 
 Modos:
 
