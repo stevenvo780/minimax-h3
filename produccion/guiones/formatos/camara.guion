@@ -1,31 +1,24 @@
-# ── AVISO 2026-08-29: ESTE FORMATO TIENE UN DEFECTO DE METODO ─────────────
-# Mirando la pieza de 56s se ve que el dolly AVANZA Y RETROCEDE: el tamaño de la
-# lampara va pequeño(2s) - mayor(9s) - PEQUEÑO OTRA VEZ(16s) - mayor(23s) -
-# pequeño(30s) - el mayor(37s) - pequeño(44s). La camara pega un salto atras en
-# cada corte.
+# ── FORMATO: camara (el movimiento ES el sujeto) ──────────────────────────
+# REESCRITO 2026-08-29. La version anterior pedia un dolly continuo repartido
+# entre las cuatro tomas, y eso NO PUEDE funcionar con anclaje: cada toma anclada
+# arranca desde un fotograma de la toma 1, asi que la camara volvia siempre a la
+# distancia inicial. Medido en la pieza de 56s: el tamaño de la lampara hacia
+# pequeño(2s), mayor(9s), PEQUEÑO OTRA VEZ(16s), mayor(23s)... la camara pegaba
+# un salto atras en cada corte.
 #
-# No es el prompt: es que EL ANCLAJE ES INCOMPATIBLE CON UN MOVIMIENTO DE CAMARA
-# CONTINUO. Cada toma anclada arranca desde un fotograma de la TOMA 1, asi que
-# siempre vuelve a la distancia inicial. Pedirle "continua avanzando" no sirve:
-# el modelo no puede continuar desde donde no esta.
-#
-# Salidas posibles, ninguna probada todavia:
-#   a) una sola toma (techo de 345 fotogramas = 14.4 s de dolly, y se acabo)
-#   b) encadenar en vez de anclar para ESTE formato, aceptando que encadenar
-#      degrada (1 plano 95.0 -> 4 planos 68.7) a cambio de continuidad de camara
-#   c) que cada toma sea un encuadre FIJO distinto en vez de un movimiento, y
-#      que el avance lo den los cortes y no la camara
-#
-# ── FORMATO: camara (camara) ──────────────────────────────────────────────────────
-# 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
-# 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
-#
+# Solucion: cada toma es un GESTO COMPLETO que empieza y acaba dentro de si
+# misma, no un tramo de un movimiento largo. Asi el corte se lee como montaje
+# deliberado y no como un fallo de continuidad. El formato conserva su identidad
+# —el movimiento sigue siendo el sujeto— sin pelearse con el anclaje.
 @TIPO camara
-@ESCENA A dim book-lined study at dusk. A warm brass desk lamp glows on a heavy wooden table, an empty leather chair beside it, tall shelves of worn hardbacks rising into darkness.
+@ESCENA A dim book-lined study at dusk. A warm brass desk lamp with a dark green shade glows on a heavy wooden table, an open book and a leather chair beside it, tall shelves of worn hardbacks rising into darkness, a tall window showing deep blue evening sky.
 @AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.
 @MUSICA A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.
 
-TOMA|dollies forward very slowly and steadily toward the lamp, never turning, never tilting.|inicio|
-TOMA|continues drifting forward at the same steady pace, the lamp filling more of the frame.|ancla|
-TOMA|continues its slow forward drift, the lamp now filling much of the frame.|ancla|
-TOMA|holds its slow advance, steady, never turning.|ancla|
+TOMA|pushes in slowly toward the lamp and comes to rest, holding steady.|inicio|
+TOMA|drifts slowly to the left across the shelves and settles.|ancla|
+TOMA|tilts down slowly from the shelves to the open book and holds.|ancla|
+TOMA|pulls back slowly from the lamp and comes to rest on the whole desk.|ancla|
+TOMA|glides slowly to the right toward the window and stops there.|ancla|
+TOMA|pushes in slowly on the open book until the page fills the frame.|ancla|
+TOMA|eases back slowly from the book and holds on the lit desk.|ancla|

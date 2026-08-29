@@ -124,6 +124,14 @@ VRAM_MIB_POR_PXFRAME_ANCLA=${VRAM_MIB_POR_PXFRAME_ANCLA:-0.000072}
 # contradicen (cuda0=1 dio 16.9 GB y cuda0=4 dio 12.0 GB, pero no eran corridas
 # comparables). Como pedir menos NO cuesta velocidad, el tope es un seguro
 # gratis: si era eso, lo arregla; si no, no se pierde nada.
+# Lo que el modelo mete en VRAM ANTES de cualquier presupuesto. No es opcional
+# ni configurable: lo dice el propio sd-cli al arrancar, en su log,
+#   total params memory size = 35398.76MB (VRAM 5558.09MB, RAM 29840.67MB)
+# El presupuesto repartia el hueco libre ignorando estos 5.5 GB, o sea repartia
+# memoria que no existe. Por eso pedia cuda0=4 con sitio para cero y sd-cli
+# abortaba con "cudaMalloc failed: out of memory" al reservar 665 MiB.
+VRAM_FIJA_MODELO=${VRAM_FIJA_MODELO:-5558}
+
 VRAM_TOPE_GB=${VRAM_TOPE_GB:-4}
 
 # vram_arg_trabajo <idx> <frames> <W> <H> [anclada]
@@ -138,7 +146,7 @@ vram_arg_trabajo() {
   techo=$(vram_techo "$idx") || { echo "cuda${idx}=2"; return 0; }
   buffer=$(awk -v f="$frames" -v w="$w" -v h="$h" -v k="$k" \
            'BEGIN{printf "%d", f*w*h*k}')
-  modelo=$(( techo - buffer ))
+  modelo=$(( techo - buffer - VRAM_FIJA_MODELO ))
   g=$(( modelo / 1024 ))
   # Nunca por debajo de 1 GB ni por encima del techo normal: con 1 GB el modelo
   # va casi todo en streaming, que es lento pero cabe siempre.
