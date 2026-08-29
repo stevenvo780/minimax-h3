@@ -182,12 +182,27 @@ con_cerrojo() {
 #
 #   ram_libre_mb            -> MiB disponibles dentro del cgroup
 #   hay_generacion_en_curso -> 0 si hay una generacion viva
+# MiB REALMENTE disponibles en el cgroup.
+#
+# La version anterior hacia (memory.max - memory.current), y memory.current
+# INCLUYE la cache de pagina, que el kernel libera en cuanto hace falta. Con la
+# cache llena esta cuenta daba "2 MiB libres" mientras la generacion corria
+# perfectamente con 11.6 GB de cache reclamable. Y sobre esa cifra enga~nosa se
+# calibraron los umbrales de espera: por eso un umbral de 19500 era inalcanzable
+# y dejaba la maquina parada esperando una condicion imposible.
+#
+# Ahora se descuenta inactive_file, que es la parte de la cache que el kernel
+# puede tirar sin pensarlo. Lo mapeado y activo (active_file) NO se descuenta,
+# porque sd-cli mantiene mapeados los GGUF del modelo y esas paginas no se van a
+# liberar mientras genere.
 ram_libre_mb() {
-  local max cur
+  local max cur inact
   max=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
   [ "$max" = max ] && max=$(awk '/MemTotal/{print $2*1024}' /proc/meminfo)
   cur=$(cat /sys/fs/cgroup/memory.current 2>/dev/null || echo 0)
-  echo $(( (max - cur) / 1048576 ))
+  inact=$(awk '/^inactive_file /{print $2}' /sys/fs/cgroup/memory.stat 2>/dev/null)
+  [ -z "$inact" ] && inact=0
+  echo $(( (max - cur + inact) / 1048576 ))
 }
 
 hay_generacion_en_curso() {
