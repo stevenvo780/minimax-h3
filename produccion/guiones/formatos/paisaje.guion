@@ -1,0 +1,11 @@
+# ── FORMATO: paisaje (paisaje) ──────────────────────────────────────────────────────
+# 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
+# 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
+#
+@TIPO paisaje
+@ESCENA An empty study at dusk. A single warm desk lamp glows on a wooden table beside an open book, tall shelves of worn hardbacks recede into darkness, a tall window shows a deep blue evening sky.
+@AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.
+@MUSICA A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.
+
+TOMA|Dust motes drift slowly through the lamp beam. Nothing else moves.|inicio|
+TOMA|The dust continues drifting. The light holds perfectly steady.|ancla|

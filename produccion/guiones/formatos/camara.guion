@@ -1,0 +1,11 @@
+# ── FORMATO: camara (camara) ──────────────────────────────────────────────────────
+# 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
+# 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
+#
+@TIPO camara
+@ESCENA A dim book-lined study at dusk. A warm brass desk lamp glows on a heavy wooden table, an empty leather chair beside it, tall shelves of worn hardbacks rising into darkness.
+@AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.
+@MUSICA A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.
+
+TOMA|dollies forward very slowly and steadily toward the lamp, never turning, never tilting.|inicio|
+TOMA|continues drifting forward at the same steady pace, the lamp filling more of the frame.|ancla|

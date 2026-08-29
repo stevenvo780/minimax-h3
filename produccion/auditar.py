@@ -9,6 +9,7 @@ Uso:  auditar.py obra     <dir_obra>            [--json] [--rapido]
       auditar.py habla    <video>               cobertura de voz: que no se calle
       auditar.py fondo    <video>               cuan negro y liso esta el fondo
       auditar.py manchas  <video>               aberraciones de color localizadas
+      auditar.py estabilidad <video>            deriva, sin suponer cara en el centro
 
 Reutiliza las medidas de evaluar2.py (criterio anti-trampa del autor, intacto)
 y añade lo que faltaba: medir EL ESLABON, no solo el plano.
@@ -300,6 +301,50 @@ def manchas(video):
             "veredicto": "LIMPIO" if not grupos else
                          ("MANCHA AISLADA" if len(grupos) == 1 else "ABERRACIONES")}
 
+def estabilidad(video, muestras=15):
+    """Estabilidad de la pieza, sin suponer que hay una cara en el centro.
+
+    evaluar2 tiene dos sesgos que la invalidan fuera del retrato hablado:
+      1. Recorta SIEMPRE el centro (45%x60% desde 28%,22%), que es donde esta la
+         cara en un retrato. En un paisaje ese recorte es la ventana; en un plano
+         de accion, el espacio que el sujeto atraviesa.
+      2. Compara solo la PRIMERA muestra contra la ULTIMA, asi que un unico
+         fotograma raro al arranque hunde la nota. Medido: un paisaje visualmente
+         impecable saco gradacion 0.0/25 porque su serie era
+         [4.857, 5.83, 5.9, 5.917, 5.919, 5.922, 5.92] — solo la primera difiere.
+
+    Aqui se mide sobre el FOTOGRAMA ENTERO y se comparan las MEDIANAS del primer
+    y del ultimo tercio, que son inmunes a un valor atipico suelto. Lo que mide
+    es si la pieza deriva, no si el sujeto se mueve: un plano de accion debe
+    poder puntuar alto."""
+    d = E.dur(video)
+    T = tempfile.mkdtemp(prefix="estab-")
+    try:
+        ents, bords = [], []
+        for i in range(muestras):
+            t = d * (i + 0.5) / muestras
+            f = os.path.join(T, "f.png")
+            subprocess.run(["ffmpeg", "-nostdin", "-y", "-v", "error", "-ss", str(t),
+                            "-i", video, "-frames:v", "1", "-update", "1", f],
+                           capture_output=True)
+            if not os.path.exists(f): continue
+            e = E.entropia_limpia(f); b = E.bordes_estr(f)
+            if e: ents.append(e)
+            if b: bords.append(b)
+        if len(ents) < 6: return {"error": "muy pocas muestras"}
+        def med(v): 
+            v = sorted(v); return v[len(v)//2]
+        n3 = max(2, len(ents)//3)
+        de = 100*(med(ents[-n3:]) - med(ents[:n3])) / med(ents[:n3])
+        db = 100*(med(bords[-n3:]) - med(bords[:n3])) / med(bords[:n3])
+        peor = max(abs(de), abs(db))
+        return {"muestras": len(ents),
+                "deriva_tono_%": round(de, 1), "deriva_bordes_%": round(db, 1),
+                "veredicto": ("ESTABLE" if peor < 5 else
+                              "DERIVA LEVE" if peor < 12 else "DERIVA")}
+    finally:
+        subprocess.run(["rm", "-rf", T])
+
 def contacto(video, salida, n=9):
     """Hoja de contactos: n fotogramas repartidos, en rejilla, con el segundo
     rotulado. Existe porque evaluar2 mide degradacion y no belleza: un video
@@ -357,6 +402,13 @@ if __name__ == "__main__":
     if len(sys.argv) < 3: print(__doc__); sys.exit(2)
     modo, arg = sys.argv[1], sys.argv[2]
     js = "--json" in sys.argv
+    if modo == "estabilidad":
+        e = estabilidad(arg)
+        if js: print(json.dumps(e, indent=1)); sys.exit(0)
+        if "error" in e: print(f"  {e['error']}"); sys.exit(1)
+        print(f"  {os.path.basename(arg)}  deriva tono {e['deriva_tono_%']:+.1f}% · "
+              f"bordes {e['deriva_bordes_%']:+.1f}%  ->  {e['veredicto']}")
+        sys.exit(0)
     if modo == "manchas":
         m = manchas(arg)
         if js: print(json.dumps(m, indent=1)); sys.exit(0)

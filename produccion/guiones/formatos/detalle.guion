@@ -1,0 +1,11 @@
+# ── FORMATO: detalle (detalle) ──────────────────────────────────────────────────────
+# 2 tomas de 345 frames (14,4 s) = 29 s. Ancladas, no encadenadas.
+# 736x416 porque a 512x288 el modelo produce aberraciones de color (12 medidas).
+#
+@TIPO detalle
+@ESCENA Weathered hands with prominent veins and short clean nails resting on an open hardback book on a dark polished wooden table, a warm desk lamp raking from the left, the page edges catching the light.
+@AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.
+@MUSICA A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.
+
+TOMA|One hand slowly turns a single page, the paper lifting and settling. The other hand stays still.|inicio|
+TOMA|A fingertip traces slowly down the page, stops, and lifts away.|ancla|
