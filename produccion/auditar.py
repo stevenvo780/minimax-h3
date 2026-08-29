@@ -60,7 +60,10 @@ def veredicto(exceso_pct, nota_plano):
     return "REGENERAR"
 
 def auditar_obra(dir_obra, con_notas=True):
-    planos = sorted(glob.glob(os.path.join(dir_obra, "p[0-9][0-9].avi")))
+    # Acepta pNN.avi (encadenado, producir.sh) y tNN.avi (anclado,
+    # producir-anclado.sh): son las dos topologias que produce el proyecto.
+    planos = sorted(glob.glob(os.path.join(dir_obra, "p[0-9][0-9].avi")) +
+                    glob.glob(os.path.join(dir_obra, "t[0-9][0-9].avi")))
     if not planos: return {"error": f"sin planos en {dir_obra}"}
     T = tempfile.mkdtemp(prefix="auditar-")
     try:
