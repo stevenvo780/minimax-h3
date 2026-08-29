@@ -22,6 +22,7 @@ set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/compat.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/prompt.sh"
 PROD=$MD/produccion
 
 GUION=${1:?falta el guion}; NOMBRE=${2:?falta el nombre}
@@ -35,26 +36,31 @@ SD=$(compat_sdcli) || { echo "sd-cli no es ejecutable aqui"; exit 1; }
 ESCENA=$(grep -m1 '^@ESCENA '   "$GUION" | sed 's/^@ESCENA //')
 AMBIENTE=$(grep -m1 '^@AMBIENTE ' "$GUION" | sed 's/^@AMBIENTE //')
 MUSICA=$(grep -m1 '^@MUSICA '   "$GUION" | sed 's/^@MUSICA //')
-mapfile -t DIALOGOS < <(grep '^HABLA|' "$GUION" | cut -d'|' -f2)
-N=${#DIALOGOS[@]}
-[ "$N" -gt 0 ] || { echo "el guion no tiene lineas HABLA"; exit 1; }
+# Tipo de plano por defecto para toda la pieza; cada toma puede anularlo.
+TIPO_DEF=$(grep -m1 '^@TIPO ' "$GUION" | sed 's/^@TIPO //' | tr -d ' ')
+TIPO_DEF=${TIPO_DEF:-habla}
+tipo_valido "$TIPO_DEF" || { echo "@TIPO desconocido: $TIPO_DEF (validos: $PROMPT_TIPOS)"; exit 1; }
+
+# HABLA| se mantiene por compatibilidad; TOMA| es la forma general.
+#   TOMA|<contenido>|<modo>|<tipo opcional>
+mapfile -t CONTENIDOS < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | cut -d'|' -f2)
+mapfile -t TIPOS      < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' -v d="$TIPO_DEF" '{t=$4; gsub(/ /,"",t); print (t==""?d:t)}')
+N=${#CONTENIDOS[@]}
+[ "$N" -gt 0 ] || { echo "el guion no tiene lineas HABLA| ni TOMA|"; exit 1; }
+for t in "${TIPOS[@]}"; do
+  tipo_valido "$t" || { echo "tipo de plano desconocido en el guion: '$t' (validos: $PROMPT_TIPOS)"; exit 1; }
+done
 
 SEG=$(awk "BEGIN{printf \"%.1f\", $FRAMES/24}")
 echo "═══ ANCLADO: $NOMBRE · $N tomas de ${SEG}s = $(awk "BEGIN{printf \"%.0f\", $N*$FRAMES/24}")s ═══"
 echo "    ${W}x${H} · ${FRAMES}f · ${PASOS} pasos · $(basename "$MODELO")"
+echo "    tipos: $(printf '%s ' "${TIPOS[@]}")"
 
-generar() {  # $1=indice  $2=dialogo  $3=ancla(o vacio)
-  local i=$1 dia=$2 ancla=${3:-}
+generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
+  local i=$1 cont=$2 ancla=${3:-} tipo=${4:-habla}
   local out=$OBRA/t$(printf %02d "$i")
   [ -f "$out.avi" ] && { echo "  toma $i ya existe, salto"; return 0; }
-  local prompt="detailed_description:
-The target video is in realistic photographic style. [Shot 1] $ESCENA He speaks with calm deliberation, unhurried, pausing naturally between sentences. Subject 1 (S1) says, <d>[Spanish] $dia</d> When his voice stops, his lips settle closed and he holds the gaze, breathing slowly.
-
-overall_soundscape:
-$AMBIENTE
-
-non_diegetic_music:
-$MUSICA"
+  local prompt; prompt=$(construir_prompt "$tipo" "$ESCENA" "$cont" "$AMBIENTE" "$MUSICA") || return 1
   local extra=(); [ -n "$ancla" ] && extra+=(--init-img "$ancla")
   # Consciente del tamaño del trabajo: el buffer de computo crece con
   # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.
@@ -68,7 +74,7 @@ $MUSICA"
     [ $t = 0 ] && echo "  esperando RAM: solo $(ram_libre_mb) MiB libres de los 8000 que hacen falta"
     sleep 20; t=$((t+20))
   done
-  echo "  toma $i · $maxv ${ancla:+· anclada a $(basename "$ancla")}"
+  echo "  toma $i [$tipo] · $maxv ${ancla:+· anclada a $(basename "$ancla")}"
   # Reintento ante OOM, como ya hacia producir.sh y yo no habia copiado.
   # El pico de memoria NO esta en la difusion sino en el decodificado de video,
   # que convierte los latentes en los 345 fotogramas de golpe. Medido: la toma 4
@@ -108,7 +114,7 @@ $MUSICA"
 }
 
 # ── toma 1: limpia, y de ella salen las anclas ─────────────────────────────
-generar 1 "${DIALOGOS[0]}" "" || exit 1
+generar 1 "${CONTENIDOS[0]}" "" "${TIPOS[0]}" || exit 1
 T1=$OBRA/t01.avi
 
 if [ "$N" -gt 1 ]; then
@@ -123,7 +129,7 @@ if [ "$N" -gt 1 ]; then
     echo "  ancla $k: segundo $POS -> $(basename "$A")"
   done
   for k in $(seq 2 "$N"); do
-    generar "$k" "${DIALOGOS[$((k-1))]}" "$OBRA/anclas/a$(printf %02d "$k").png" || exit 1
+    generar "$k" "${CONTENIDOS[$((k-1))]}" "$OBRA/anclas/a$(printf %02d "$k").png" "${TIPOS[$((k-1))]}" || exit 1
   done
 fi
 
