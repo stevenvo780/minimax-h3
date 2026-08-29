@@ -1,0 +1,12 @@
+# ── EXPERIMENTO BARBA · brazo A: CON habla ────────────────────────────────
+# Steven: "se siente la barba como un poco acartonada".
+# Hipotesis: la nitidez facial se paga al generar el habla. En la exploracion
+# de seis formatos, 'muda' saco 97.4 y era visiblemente el mas nitido de todos.
+# Este par aisla esa variable: MISMA escena, MISMA semilla, MISMOS pasos y
+# resolucion. Lo unico que cambia es si el modelo tiene que sincronizar labios.
+@TIPO habla
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a close-cropped salt-and-pepper beard with individual coarse hairs catching the light, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A single warm key light from the left rakes across his cheek and beard, falling off sharply and leaving the right side in deep shadow. He is seated against a plain matte black studio backdrop that fills the entire frame behind him. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds.
+@MUSICA A single sustained low cello note held quietly and continuously, unchanging throughout.
+
+TOMA|Primero existimos. Despues, con lo que hacemos, decidimos que somos.|inicio|
