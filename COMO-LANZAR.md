@@ -42,6 +42,36 @@ Encadenar sí degrada, con un acantilado en el tercer eslabón:
 
 Por eso el lazo no encadena: alarga la toma y varía la semilla.
 
+### Pero para pasar del minuto, se ANCLA
+
+Una sola toma tiene techo: **345 fotogramas a 736x416** (14,4 s), y 685 a 512x288 — pero a
+512x288 el modelo produce aberraciones de color (12 manchas medidas contra 0 a 736x416). Para
+una pieza de un minuto hacen falta varias tomas, y ahí la elección no es «encadenar o no»:
+
+| montaje | 4 tomas |
+|---|---|
+| encadenado | 68,7 |
+| **anclado** | **85,9** |
+
+Anclar es arrancar cada toma desde un fotograma **prístino** de la toma 1, no desde el último
+fotograma de la anterior. Lo que degrada el encadenado es que el último fotograma reinyectado
+ya lleva el realce del modelo, y el modelo realza encima: +3,2 % → +8,5 % → +13,5 % → +21,1 %
+de energía de bordes acumulada. El ancla resetea esa deriva — salto de bordes −3 % en un
+enlace normal frente a −16 % en cada punto de anclaje.
+
+```bash
+produccion/producir-anclado.sh guion.guion mi-pieza 345 736 416 20
+```
+
+### Varios formatos en una tanda
+
+```bash
+produccion/formatos.sh                      # detalle, camara, accion, paisaje
+VALIDAR=1 produccion/producir-anclado.sh g.guion x   # revisar el guion SIN gastar GPU
+```
+
+Los seis tipos de plano están en `lib/prompt.sh` y documentados en el README.
+
 ## Comprobar una pieza a mano
 
 ```bash
@@ -50,7 +80,20 @@ produccion/auditar.py contacto video.avi h.jpg   9 fotogramas para MIRARLO
 produccion/auditar.py habla    video.avi     que no se calle a la mitad
 produccion/auditar.py audio    video.avi     ruido real, sin confundirlo con volumen
 produccion/auditar.py obra     obra/nombre/  mide cada ESLABÓN si hay varios planos
+produccion/auditar.py manchas  video.avi     escanea TODOS los fotogramas
+produccion/auditar.py estabilidad video.avi  deriva, SIN suponer que hay una cara
+produccion/comparar-formatos.sh              tabla comparable entre formatos
 ```
+
+**Dos medidas mienten fuera del retrato hablado, y hay que saberlo:**
+
+- `evaluar2` recorta **siempre el centro** (donde está la cara en un retrato) y compara sólo
+  la primera muestra contra la última. Con esa vara un paisaje impecable sacó 44,6 y un plano
+  de acción 79,0 *por que el sujeto se moviera, que es su función*. Para comparar formatos
+  distintos, usa `estabilidad`, que mide el fotograma entero y compara medianas de tercios.
+- `habla` sólo significa algo si hay diálogo. En un plano de manos o un paisaje no hay
+  silencios que separen frases, así que lee el ambiente como voz continua y dictamina
+  «ATROPELLADO». `producir-anclado.sh` ya se la salta cuando ninguna toma es de tipo `habla`.
 
 ## Hardware
 
@@ -88,4 +131,20 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   tope duro en σ 0,35 y se niega a pasar.
 - **No pidas el fondo por negación.** «no objects, no furniture, no walls» mete
   muebles y paredes. Descríbelo en positivo: «a plain matte black backdrop».
-- **No edites un script mientras corre.** Bash relee por offset de bytes.
+- **No edites un script mientras corre.** Bash relee por offset de bytes. Si tienes que
+  cambiarlo con una tanda viva, escribe a un temporal y `mv` encima: el `rename` es atómico y
+  el proceso vivo conserva su inode. La tanda siguiente ya coge la versión nueva.
+- **No midas mientras genera.** Escanear todos los fotogramas de un clip mientras el modelo
+  decodifica el VAE mató una toma en el paso 16/20: 18 minutos de GPU. Durante una generación
+  la RAM del cgroup baja a decenas de MiB. `comparar-formatos.sh` se niega solo; para forzarlo
+  hace falta `MEDIR_IGUAL=1`, a sabiendas.
+- **No compruebes un guion produciéndolo.** Usa `VALIDAR=1`, que además imprime el prompt
+  exacto que recibe el modelo. Comprobar la sintaxis arrancando una generación real deja dos
+  procesos peleándose por el cerrojo.
+- **No bajes `VRAM_COLCHON` por debajo del margen del guardián.** Si el presupuesto autoriza
+  más VRAM de la que el guardián tolera, el sistema mata la generación que él mismo autorizó:
+  pasó, y costó una toma en el paso 13/20. Y ojo, **anclar engorda el buffer ~1,7 GB** sobre
+  la ruta limpia — `vram_arg_trabajo` necesita saber si la toma va anclada.
+- **No des por buena una nota sin saber qué mide.** Tres medidas de este proyecto han dado
+  falsas alarmas: `evaluar2` fuera del retrato hablado, la cobertura de voz en planos mudos, y
+  un «audio 5/15» que en realidad decía que mis clips eran más limpios que la referencia.
