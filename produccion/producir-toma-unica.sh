@@ -47,7 +47,7 @@ echo "═══ TOMA UNICA: $NOMBRE ═══  $(date '+%F %H:%M:%S')"
 echo "    ${W}x${H} · ${FRAMES} frames (${SEG}s) · ${PASOS} pasos · $(basename "$MODELO")"
 vram_informe
 
-MAXV=$(vram_arg 0)
+MAXV=$(vram_arg_trabajo 0 "$FRAMES" "$W" "$H")
 echo "    techo de VRAM: --max-vram $MAXV (deja libre el resto para el escritorio)"
 vram_esperar 0 5000 600 || echo "    aviso: sigo sin margen holgado, arranco igual"
 

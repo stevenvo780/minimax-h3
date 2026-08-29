@@ -1,0 +1,29 @@
+# ── EXISTENCIALISMO · 4 TOMAS ANCLADAS a 736x416 ─────────────────────────
+# 4 x 345 frames (14,4 s) = 57,5 s. Ninguna encadenada: la 1 es limpia y las
+# otras tres arrancan de frames PRISTINOS repartidos por ella.
+#
+# Por que 736x416 y no 512x288, que permitiria tomas del doble de largas:
+#   a 512x288 el modelo produce ABERRACIONES DE COLOR. Medido con
+#   auditar.py manchas, que escanea los 685 fotogramas de una pasada:
+#     podado 512x288  -> 12 manchas (picos de saturacion 65-72 sobre una
+#                        linea base rocosa de 50, de dos fotogramas cada uno)
+#     podado 736x416  -> 0 manchas
+#     completo 736x416 y 1376x768 -> 0 manchas
+#   No es el modelo podado: es la resolucion. A 512x288 no hay pixeles
+#   suficientes y el croma se desestabiliza.
+#
+# Por que anclado y no encadenado:
+#   encadenar acumula realce y hunde el montaje (1 plano 95.0 · 2 89.0 ·
+#   3 87.7 · 4 68.7). El ancla lo resetea: salto de bordes -3% en un enlace
+#   normal frente a -16% en cada punto de anclaje.
+#
+# El fondo se pide EN POSITIVO. Por negacion salian lampara y ventana.
+#
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a close-cropped salt-and-pepper beard, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A single warm key light from the left falls off sharply, leaving the right side of his face in deep shadow. He is seated against a plain matte black studio backdrop that fills the entire frame behind him, an unbroken flat black surface lit by nothing. The backdrop is uniform and featureless from edge to edge. Extremely shallow depth of field keeps the backdrop perfectly smooth. Static locked-off camera, no camera movement whatsoever, fine film grain. He looks directly into the lens. The same man throughout: identical face, identical beard, identical sweater, identical light.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
+@MUSICA A single sustained low cello note held quietly and continuously beneath the dialogue, unchanging throughout.
+
+HABLA|Nadie te preguntó si querías nacer. Y sin embargo, aquí estás. Un cuchillo fue pensado para cortar antes de existir. Nosotros, no.|inicio|
+HABLA|Primero existimos. Después, con lo que hacemos, decidimos qué somos. No hay plano previo al que ajustarse, ni excusa que nos salve. Estamos condenados a ser libres.|ancla|
+HABLA|Condenados, porque esta libertad no la pedimos. Y casi todos huimos: al papel, a la costumbre, a lo que se espera. Sartre lo llamó mala fe: fingir que no podíamos elegir.|ancla|
+HABLA|Camus buscó una respuesta, y el mundo calló. A ese silencio lo llamó el absurdo. Pero no concluyó en la desesperación. La lucha misma basta para llenar un corazón. Hay que imaginar a Sísifo dichoso.|ancla|

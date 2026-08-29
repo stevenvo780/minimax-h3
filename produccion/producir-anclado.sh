@@ -56,7 +56,9 @@ $AMBIENTE
 non_diegetic_music:
 $MUSICA"
   local extra=(); [ -n "$ancla" ] && extra+=(--init-img "$ancla")
-  local maxv; maxv=$(vram_arg 0)
+  # Consciente del tamaño del trabajo: el buffer de computo crece con
+  # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.
+  local maxv; maxv=$(vram_arg_trabajo 0 "$FRAMES" "$W" "$H")
   vram_esperar 0 5000 900 || echo "  aviso: margen de VRAM justo, arranco igual"
   echo "  toma $i · $maxv ${ancla:+· anclada a $(basename "$ancla")}"
   local t0=$SECONDS

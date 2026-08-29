@@ -8,6 +8,7 @@ Uso:  auditar.py obra     <dir_obra>            [--json] [--rapido]
       auditar.py audio    <video>               ruido real, separado del volumen
       auditar.py habla    <video>               cobertura de voz: que no se calle
       auditar.py fondo    <video>               cuan negro y liso esta el fondo
+      auditar.py manchas  <video>               aberraciones de color localizadas
 
 Reutiliza las medidas de evaluar2.py (criterio anti-trampa del autor, intacto)
 y añade lo que faltaba: medir EL ESLABON, no solo el plano.
@@ -20,7 +21,7 @@ Por que el eslabon. Medido sobre existencialismo-4p:
       last01 +3.2%   last02 +8.5%   last03 +13.5%   last04 +21.1%
   (exceso de energia de borde sobre el primer frame del primer plano)
 """
-import sys, os, json, glob, subprocess, tempfile
+import re, sys, os, json, glob, subprocess, tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import evaluar2 as E
 
@@ -247,6 +248,55 @@ def fondo(video, muestras=5):
     finally:
         subprocess.run(["rm", "-rf", T])
 
+def manchas(video):
+    """Detecta ABERRACIONES DE COLOR localizadas: manchas que aparecen y se van.
+
+    Existe porque el bloque 'croma' de evaluar2 NO las ve: mide la dispersion
+    entre canales promediada sobre todo el recorte de cara, y una mancha
+    localizada apenas mueve la media. Medido: una toma con una mancha
+    amarillo-verdosa clarisima en la sien (s14.3) puntuo croma 10/10.
+
+    Un primer intento por muestreo tampoco servia: la mancha dura uno o dos
+    fotogramas y un muestreo cada 0.7 s se la salta. Aqui se escanean TODOS los
+    fotogramas de una pasada con signalstats, que da la saturacion maxima de
+    cada uno. Una mancha dispara ese maximo por encima de la mediana de la pieza.
+    """
+    r = subprocess.run(["ffmpeg", "-nostdin", "-v", "info", "-i", video, "-an",
+                        "-vf", "signalstats,metadata=print:key=lavfi.signalstats.SATMAX",
+                        "-f", "null", "-"], capture_output=True, text=True)
+    serie, t = [], None
+    for l in r.stderr.splitlines():
+        m = re.search(r"pts_time:([0-9.]+)", l)
+        if m: t = float(m.group(1)); continue
+        m = re.search(r"SATMAX=([0-9.]+)", l)
+        if m and t is not None: serie.append((t, float(m.group(1))))
+    if not serie: return {"error": "no pude leer signalstats"}
+    vals = sorted(v for _, v in serie)
+    mediana = vals[len(vals) // 2]
+    # Umbral estadistico, calibrado contra una mancha vista y confirmada a ojo.
+    # La linea base es rocosa (SATMAX 49-52, desviacion 3.6) y la mancha salta a
+    # 69-72 durante DOS fotogramas: +6 desviaciones. Un umbral por factor (1.6x)
+    # se la comia; uno a 4 desviaciones la caza sin dar falsos positivos.
+    n = len(vals); media = sum(vals) / n
+    desv = (sum((v - media) ** 2 for v in vals) / n) ** 0.5
+    umbral = mediana + max(4 * desv, 10)
+    malos = [(round(t, 2), round(v, 1)) for t, v in serie if v > umbral]
+    # agrupar picos contiguos: una mancha de 3 fotogramas es UNA mancha
+    grupos, ult = [], -9
+    for t, v in malos:
+        if t - ult > 0.5: grupos.append([t, v])
+        elif v > grupos[-1][1]: grupos[-1][1] = v
+        ult = t
+    return {"fotogramas": len(serie),
+            "saturacion_mediana": round(mediana, 1),
+            "umbral": round(umbral, 1),
+            "pico_maximo": round(max(vals), 1),
+            "fotogramas_con_mancha": len(malos),
+            "manchas": len(grupos),
+            "momentos": [f"{t}s (sat {v})" for t, v in grupos[:10]],
+            "veredicto": "LIMPIO" if not grupos else
+                         ("MANCHA AISLADA" if len(grupos) == 1 else "ABERRACIONES")}
+
 def contacto(video, salida, n=9):
     """Hoja de contactos: n fotogramas repartidos, en rejilla, con el segundo
     rotulado. Existe porque evaluar2 mide degradacion y no belleza: un video
@@ -304,6 +354,15 @@ if __name__ == "__main__":
     if len(sys.argv) < 3: print(__doc__); sys.exit(2)
     modo, arg = sys.argv[1], sys.argv[2]
     js = "--json" in sys.argv
+    if modo == "manchas":
+        m = manchas(arg)
+        if js: print(json.dumps(m, indent=1)); sys.exit(0)
+        if "error" in m: print(f"  {m['error']}"); sys.exit(1)
+        print(f"  {os.path.basename(arg)}  {m['fotogramas']} fotogramas · saturacion mediana "
+              f"{m['saturacion_mediana']} · pico {m['pico_maximo']} · {m['manchas']} mancha(s) "
+              f"en {m['fotogramas_con_mancha']} fotogramas  ->  {m['veredicto']}")
+        for x in m["momentos"]: print(f"      {x}")
+        sys.exit(0 if m["veredicto"] == "LIMPIO" else 1)
     if modo == "fondo":
         f = fondo(arg)
         if js: print(json.dumps(f, indent=1)); sys.exit(0)
