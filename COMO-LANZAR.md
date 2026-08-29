@@ -164,10 +164,18 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   cambiarlo con una tanda viva, escribe a un temporal y `mv` encima: el `rename` es atómico y
   el proceso vivo conserva su inode. La tanda siguiente ya coge la versión nueva.
 - **Nunca mates procesos con `pkill -f` ni `pgrep -f`.** El patrón hace match con **tu propia
-  línea de comandos**, así que te matas a ti mismo. Ha pasado **dos veces** en este proyecto: una
-  con `pkill -f` y otra, ya documentada la primera, con `pgrep -f` dentro de un `for`. Saca los
-  PID por otra vía (`nvidia-smi --query-compute-apps`, o el PID que guardaste al lanzar) y mata
-  por PID.
+  línea de comandos**, así que te matas a ti mismo. Ha pasado **tres veces** en este proyecto,
+  la tercera en el comando siguiente a documentar la segunda. Escribirlo no basta: no uses esa
+  familia de comandos, punto. Lo que sí funciona:
+
+  ```bash
+  # por nombre EXACTO de proceso: un shell nunca se llama sd-cli
+  for p in $(ps -eo pid,comm | awk '$2=="sd-cli"{print $1}'); do kill -TERM $p; done
+
+  # por script, con el patrón PARTIDO para que tu cmdline no lo contenga entero
+  P='fi'; P="${P}x.sh"
+  ps -eo pid,args | awk -v a="$P" -v mio=$$ '$1!=mio && index($0,a){print $1}'
+  ```
 - **No midas mientras genera.** Escanear todos los fotogramas de un clip mientras el modelo
   decodifica el VAE mató una toma en el paso 16/20: 18 minutos de GPU. Durante una generación
   la RAM del cgroup baja a decenas de MiB. `comparar-formatos.sh` se niega solo; para forzarlo
@@ -175,6 +183,13 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
 - **No compruebes un guion produciéndolo.** Usa `VALIDAR=1`, que además imprime el prompt
   exacto que recibe el modelo. Comprobar la sintaxis arrancando una generación real deja dos
   procesos peleándose por el cerrojo.
+- **Antes de culpar a la VRAM de un OOM, mira si es de RAM.** El cgroup tiene 24 GB y `sd-cli`
+  necesita **14,2 GB medidos**; el resto de procesos más el kernel y el driver se comen ~10 GB.
+  Los umbrales de espera estaban a ojo (8 GB para arrancar, 10 para reintentar), así que el
+  script daba luz verde con 13,4 GB libres y el OOM killer lo mataba en el paso 7 de 20, tres
+  veces en la misma toma. Ahora es un solo número, `RAM_NECESARIA=16000`, sacado de medir.
+  Descartado por el camino: no era el presupuesto de VRAM (se bajó de `cuda0=7` a `4` y murió
+  igual) ni la caché de página (`anon` 17,6 GB contra `file` 3,5 GB).
 - **No bajes `VRAM_COLCHON` por debajo del margen del guardián.** Si el presupuesto autoriza
   más VRAM de la que el guardián tolera, el sistema mata la generación que él mismo autorizó:
   pasó, y costó una toma en el paso 13/20. Y ojo, **anclar engorda el buffer ~1,7 GB** sobre

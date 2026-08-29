@@ -29,6 +29,21 @@ CAL=$MD/calidad   # las herramientas de medida viven aparte
 
 GUION=${1:?falta el guion}; NOMBRE=${2:?falta el nombre}
 FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
+# ── Cuanta RAM hace falta ANTES de arrancar una toma ──────────────────────
+# Estaba a ojo: 8000 MiB para arrancar y 10000 para reintentar. MEDIDO el
+# 2026-08-29 muestreando memory.current cada 5 s durante una generacion, sd-cli
+# llega a 14.2 GB de RSS. Los dos umbrales se quedaban MUY cortos, asi que el
+# script daba luz verde con 13.4 GB libres —lo dijo su propio log: "toma 3: 13408
+# MiB libres, reintento"— y el OOM killer lo mataba en el paso 7 de 20. Tres
+# veces seguidas en la misma toma.
+#
+# Descartado por el camino, midiendo: NO era el presupuesto de VRAM (se bajo de
+# cuda0=7 a 4 y murio igual) ni la cache de pagina (el desglose del cgroup dio
+# anon 17.6 GB contra file 3.5 GB). Era arrancar sin sitio, sin mas.
+#
+# 16000 deja los 14.2 medidos mas margen para el pico del VAE del final.
+RAM_NECESARIA=${RAM_NECESARIA:-16000}
+
 MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 
 OBRA=$PROD/obra/$NOMBRE; mkdir -p "$OBRA/anclas" "$PROD/logs"
@@ -95,8 +110,8 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   # arrancar sin sitio la mata el OOM killer a mitad. Paso de verdad: la toma 3
   # murio en el paso 16/20 tras 18 min de GPU porque habia mediciones en paralelo.
   local t=0
-  while [ "$(ram_libre_mb)" -lt 8000 ] && [ $t -lt 900 ]; do
-    [ $t = 0 ] && echo "  esperando RAM: solo $(ram_libre_mb) MiB libres de los 8000 que hacen falta"
+  while [ "$(ram_libre_mb)" -lt "$RAM_NECESARIA" ] && [ $t -lt 900 ]; do
+    [ $t = 0 ] && echo "  esperando RAM: solo $(ram_libre_mb) MiB libres de los $RAM_NECESARIA que hacen falta"
     sleep 20; t=$((t+20))
   done
   echo "  toma $i [$tipo] · $maxv ${ancla:+· anclada a $(basename "$ancla")}"
@@ -111,7 +126,7 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
     echo "  toma $i: reintento $intento/3 tras OOM · esperando a que se asiente la memoria"
     sleep 120
     local w=0
-    while [ "$(ram_libre_mb)" -lt 10000 ] && [ $w -lt 600 ]; do sleep 20; w=$((w+20)); done
+    while [ "$(ram_libre_mb)" -lt "$RAM_NECESARIA" ] && [ $w -lt 900 ]; do sleep 20; w=$((w+20)); done
     echo "  toma $i: $(ram_libre_mb) MiB libres, reintento"
   fi
   local t0=$SECONDS
