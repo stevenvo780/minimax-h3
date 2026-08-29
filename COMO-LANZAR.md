@@ -183,6 +183,16 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
 - **No compruebes un guion produciéndolo.** Usa `VALIDAR=1`, que además imprime el prompt
   exacto que recibe el modelo. Comprobar la sintaxis arrancando una generación real deja dos
   procesos peleándose por el cerrojo.
+- **Un `Aborted (core dumped)` NO es un OOM de RAM: mira `produccion/logs/<pieza>-t<N>.log`.**
+  La salida completa de `sd-cli` ya se guarda ahí, con el motivo exacto. En la consola la barra
+  de progreso lo sobrescribe con retornos de carro y sólo queda la traza, que no dice nada. El
+  mensaje que buscas se lee así:
+  ```
+  ggml_backend_cuda_buffer_type_alloc_buffer: allocating 665.05 MiB on device 0:
+  cudaMalloc failed: out of memory
+  ```
+  Eso es **VRAM**, no RAM. Pasó cuando el escritorio del usuario subió de 3,5 a 5,7 GB y la
+  generación dejó de caber. Se perdió una tarde ajustando umbrales de RAM por no leer ese log.
 - **`sd-cli` llega a 19,3 GB de RAM y el contenedor tiene 24. El margen es CERO.** Medido
   muestreando a **1 Hz** y guardando el máximo; muestreando cada 5 s salían 14,2 GB, porque el
   pico se escapaba entre muestras. **Si mides un pico, muestrea rápido o no lo estás midiendo.**

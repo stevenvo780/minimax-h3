@@ -134,10 +134,17 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   local intento=1
   while [ $intento -le 3 ]; do
   if [ $intento -gt 1 ]; then
-    echo "  toma $i: reintento $intento/3 tras OOM · esperando a que se asiente la memoria"
+    # El log tiene que decir que esta ESPERANDO y hasta cuando. Sin esto, los
+    # 120 s de reposo mas la espera de RAM parecen la maquina colgada: Steven lo
+    # reporto dos veces como "veo la PC quieta", y las dos tuvo que mirar el log
+    # alguien para saber si estaba trabajando o muerta.
+    echo "  toma $i: reintento $intento/3 tras OOM · reposo de 120s hasta $(date -d '+120 seconds' +%H:%M:%S)"
     sleep 120
     local w=0
-    while [ "$(ram_libre_mb)" -lt "$RAM_NECESARIA" ] && [ $w -lt 900 ]; do sleep 20; w=$((w+20)); done
+    while [ "$(ram_libre_mb)" -lt "$RAM_NECESARIA" ] && [ $w -lt 900 ]; do
+      [ $((w % 60)) = 0 ] && echo "  toma $i: esperando RAM ${w}s · $(ram_libre_mb)/$RAM_NECESARIA MiB"
+      sleep 20; w=$((w+20))
+    done
     echo "  toma $i: $(ram_libre_mb) MiB libres, reintento"
   fi
   local t0=$SECONDS
