@@ -16,10 +16,11 @@ set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/compat.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh"
 PROD=$MD/produccion
+CAL=$MD/calidad   # las herramientas de medida viven aparte
 
 GUION=${1:?falta el guion}; NOMBRE=${2:?falta el nombre}
 FRAMES=${3:-345}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
-MODELO=${MODELO:-$MD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
+MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 
 OBRA=$PROD/obra/$NOMBRE; mkdir -p "$OBRA" "$PROD/logs"
 [ -f "$GUION" ] || { echo "no existe el guion: $GUION"; exit 1; }
@@ -73,6 +74,6 @@ fi
 mv "$REAL" "$OBRA/p01.avi"
 echo "    OK en $((SECONDS-T0))s -> $OBRA/p01.avi"
 echo "═══ midiendo ═══"
-python3 "$PROD/auditar.py" plano "$OBRA/p01.avi"
-python3 "$PROD/auditar.py" contacto "$OBRA/p01.avi" "$OBRA/contacto.jpg" >/dev/null \
+python3 "$CAL/auditar.py" plano "$OBRA/p01.avi"
+python3 "$CAL/auditar.py" contacto "$OBRA/p01.avi" "$OBRA/contacto.jpg" >/dev/null \
   && echo "    hoja de contactos: $OBRA/contacto.jpg"

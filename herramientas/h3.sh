@@ -5,7 +5,7 @@
 #   FRAMES=90 h3.sh "prompt"              -> clip de 3.75s  (frames validos: 5,22,39,56,73,90...)
 #   STEPS=8 h3.sh "prompt"                -> mas rapido, menos calidad
 #   IMG=foto.png h3.sh "prompt"           -> condicionado por primer frame (I2VA)
-. "$(dirname "${BASH_SOURCE[0]}")/lib/comun.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 params_defecto 864 480 56 20
 PARAMS_BACKEND="diffusion=cpu"; MAXVRAM="cuda0=8"
 

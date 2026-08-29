@@ -317,6 +317,52 @@ bajan a 33 GB y entran en un contenedor de 24 GB + 24 GB de swap.
 
 ## Estructura
 
+Reordenado el 2026-08-29: la raíz había llegado a 29 entradas, con 12 vídeos sueltos mezclados
+con scripts, documentación y los 51 GB de pesos, y las herramientas de medida repartidas entre
+`produccion/` y la raíz. Ahora son 13 entradas, y `pruebas/checks/estructura.sh` lo mantiene así.
+
+```
+README.md · COMO-LANZAR.md
+
+lib/                  lo compartido — el único sitio con rutas
+  comun.sh            rutas, parámetros, ff/ffp, cerrojo, nivel de luminancia
+  compat.sh           hace ejecutable sd-cli en este contenedor
+  vram.sh             presupuesto de VRAM adaptativo
+  prompt.sh           los seis tipos de plano
+  enlace.sh           limpieza de enlaces (con tope duro)
+
+produccion/           GENERAR
+  producir-anclado.sh  la pipeline buena: tomas ancladas + montaje nivelado
+  formatos.sh          los cuatro formatos en serie, resumible
+  alargar-formatos.sh  de 29 s a ~58 s sin regenerar lo ya hecho
+  lazo.sh              itera semillas hasta una meta
+  guiones/             los .guion, con el porqué en la cabecera
+  obra/<nombre>/       tomas, anclas y montaje (resumible)
+
+calidad/              MEDIR — todo junto, ya no repartido
+  auditar.py           obra · plano · contacto · audio · habla · fondo ·
+                       manchas · estabilidad
+  evaluar.py           criterio original del autor (intacto)
+  evaluar2.py          idem — OJO: sólo vale para retrato hablado
+  comparar-formatos.sh tabla comparable ENTRE formatos distintos
+  medir-barba.py       detalle fino en una zona concreta
+  deriva.sh            deriva a lo largo de una cadena
+
+herramientas/         piezas sueltas de un solo uso
+  h3.sh                un clip para probar un prompt
+  encadenar.sh · generar-1080p.sh · ordenar-videos.sh
+
+videos/               LO QUE SE ENTREGA
+  entregas/           las piezas buenas (DEST por defecto)
+  experimentos/       clips de experimentos (barbas, resoluciones)
+
+modelos/              los 51 GB de pesos, agrupados (fuera de git)
+  diffusion_models/ · text_encoders/ · vae/ · upscalers/
+
+pruebas/humo.sh       punto de entrada único · checks/ 25 checks de regresión
+medidas/              mediciones de VRAM (versionadas)
+archivo/              material apartado, no borrado
+proyecto-minuto/      pipeline anterior de 14 planos (histórico)
 ```
 README.md
 lib/comun.sh          rutas, parámetros y llamadas compartidas — el único sitio con rutas

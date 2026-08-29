@@ -1,12 +1,9 @@
 # ── Pesos de modelos (51 GB) — nunca a git ────────────────────────────────
-diffusion_models/
-text_encoders/
-vae/
-upscalers/
+modelos/
 bin/
 
 # ── Material generado y de trabajo ────────────────────────────────────────
-old/
+archivo/
 produccion/obra/
 produccion/logs/
 proyecto-minuto/shots/
@@ -19,6 +16,8 @@ proyecto-minuto/GENERACION_LISTA
 
 # medidas/ SI se versiona: son 108 KB de mediciones de VRAM
 # irrepetibles sin volver a gastar horas de GPU.
+
+videos/
 
 # ── Subproductos ──────────────────────────────────────────────────────────
 *.avi

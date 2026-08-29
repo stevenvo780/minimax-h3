@@ -32,6 +32,7 @@ set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh"
 PROD=$MD/produccion
+CAL=$MD/calidad   # las herramientas de medida viven aparte
 
 GUION=${1:?falta el guion}; NOMBRE=${2:?falta el nombre}; shift 2
 META=85; HORAS=8; FRAMES=345; W=736; H=416; PASOS=20; SECO=0
@@ -86,9 +87,9 @@ for SEMILLA in 100 200 300 400 500 600 700 800; do
     V=$OBRA/p01.avi
     [ -f "$V" ] || { anota "intento $INTENTO fallo la generacion"; PROBADAS="$PROBADAS $SEMILLA"; guardar; continue; }
     mv "$V" "$OBRA/intentos/s$SEMILLA.avi"; V=$OBRA/intentos/s$SEMILLA.avi
-    NOTA=$(python3 "$PROD/evaluar2.py" "$V" 2>/dev/null | sed -n 's/.*TOTAL \([0-9.]*\).*/\1/p')
-    python3 "$PROD/auditar.py" contacto "$V" "$OBRA/intentos/s$SEMILLA.jpg" >/dev/null 2>&1
-    python3 "$PROD/auditar.py" audio "$V" 2>/dev/null | tee -a "$BIT"
+    NOTA=$(python3 "$CAL/evaluar2.py" "$V" 2>/dev/null | sed -n 's/.*TOTAL \([0-9.]*\).*/\1/p')
+    python3 "$CAL/auditar.py" contacto "$V" "$OBRA/intentos/s$SEMILLA.jpg" >/dev/null 2>&1
+    python3 "$CAL/auditar.py" audio "$V" 2>/dev/null | tee -a "$BIT"
   fi
   PROBADAS="$PROBADAS $SEMILLA"
   anota "intento $INTENTO · semilla $SEMILLA · nota ${NOTA:-0}"

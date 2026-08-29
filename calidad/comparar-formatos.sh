@@ -14,7 +14,7 @@
 set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"   # MD lo define comun.sh
 exigir_herramientas ffmpeg ffprobe || exit 1
-A="$MD/produccion/auditar.py"
+A="$MD/calidad/auditar.py"
 PAT=${1:-formato-*.mp4}
 
 # No medir con una generacion en curso: escanear todos los fotogramas de un

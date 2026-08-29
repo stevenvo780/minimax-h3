@@ -3,7 +3,7 @@
 # es el frame inicial (--init-img) del siguiente. Calidad nativa sin techo de duracion.
 # Uso: [SEGS=3 FRAMES=124 W=1376 H=768 STEPS=20 NAME=x] encadenar.sh "prompt"
 set -u
-. "$(dirname "${BASH_SOURCE[0]}")/lib/comun.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 
 WORK=$(mktemp -d /tmp/h3-chain-XXXXXX)
 trap 'rm -rf "$WORK"' EXIT

@@ -72,17 +72,27 @@ probar_sonda() { # <ruta-sonda> <etiqueta>
   fi
   md=$(printf  '%s\n' "$out" | sed -n 's/^MD=//p'   | tail -1)
   dest=$(printf '%s\n' "$out" | sed -n 's/^DEST=//p' | tail -1)
+  ULTIMO_DEST=$dest
   [ "$md" != "$VIEJO_MD" ] || {
     echo "FALLA $NOMBRE: $et dedujo MD='$md' (ruta de un solo puesto clavada) en lugar de '$PROY'"; return 1; }
   [ "$md" = "$PROY" ] || {
     echo "FALLA $NOMBRE: $et dedujo MD='$md', esperaba '$PROY'"; return 1; }
   case "$dest" in
-    "$VIEJO_DEST_PRE"*) echo "FALLA $NOMBRE: $et dio DEST='$dest' (clavado), esperaba salir de \$HOME='$HOME_FALSO'"; return 1;;
-    "$HOME_FALSO"/*) : ;;
-    *) echo "FALLA $NOMBRE: $et dio DEST='$dest', que no cuelga de \$HOME='$HOME_FALSO'"; return 1;;
+    # CONTRATO ACTUALIZADO 2026-08-29. Antes DEST colgaba de $HOME (~/Vídeos) y
+    # este check lo exigia. Pero las piezas acababan donde el autor no las veia
+    # —lo dijo con estas palabras: "no sigas dejando en la torre que no las veo"—
+    # asi que ahora DEST cuelga del PROYECTO, en videos/entregas.
+    #
+    # Lo que este check sigue defendiendo, que es lo que importa, es que DEST se
+    # DEDUZCA y no este clavado: el arbol simulado esta en otro punto de montaje,
+    # asi que un DEST correcto tiene que caer dentro de $PROY y no en la ruta de
+    # la maquina donde se escribio el codigo.
+    "$VIEJO_DEST_PRE"*) echo "FALLA $NOMBRE: $et dio DEST='$dest' (ruta clavada de un solo puesto)"; return 1;;
+    "$PROY"/*) : ;;
+    *) echo "FALLA $NOMBRE: $et dio DEST='$dest', que no cuelga del proyecto '$PROY'"; return 1;;
   esac
-  [ "$dest" = "$HOME_FALSO/Vídeos" ] || {
-    echo "FALLA $NOMBRE: $et dio DEST='$dest', esperaba '$HOME_FALSO/Vídeos'"; return 1; }
+  [ "$dest" = "$PROY/videos/entregas" ] || {
+    echo "FALLA $NOMBRE: $et dio DEST='$dest', esperaba '$PROY/videos/entregas'"; return 1; }
   return 0
 }
 
@@ -119,5 +129,8 @@ if [ -n "$C" ]; then
   exit 1
 fi
 
-echo "PASA $NOMBRE ($N scripts sourcean lib/comun.sh; MD='$PROY' y DEST='$HOME_FALSO/Vídeos' deducidos)"
+# El mensaje imprime el DEST que se MIDIO, no uno de ejemplo: durante el reorden
+# de 2026-08-29 esta linea seguia anunciando el valor viejo aunque el check ya
+# comprobaba el nuevo, y eso hizo dudar de un cambio que estaba bien.
+echo "PASA $NOMBRE ($N scripts sourcean lib/comun.sh; MD='$PROY' y DEST='${ULTIMO_DEST:-?}' deducidos)"
 exit 0

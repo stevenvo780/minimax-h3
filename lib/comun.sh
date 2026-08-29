@@ -13,14 +13,16 @@
 MD=${MD:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 # HOME puede venir sin definir (cron, systemd, sudo sin -H); sin este respaldo
 # DEST valdria "/Vídeos" y los videos acabarian en la raiz del disco.
-DEST=${DEST:-${HOME:-/home/$(id -un)}/Vídeos}
+# Las piezas van a videos/entregas del PROYECTO, no a ~/Vídeos: alli el autor
+# no las ve. Se puede apuntar a otro sitio exportando DEST.
+DEST=${DEST:-$MD/videos/entregas}
 
 SDCLI=$MD/bin/sd-cli
-MODELO_DIFF=$MD/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf
-MODELO_VAE=$MD/vae/minimax_h3_video_vae_fp16.safetensors
-MODELO_AVAE=$MD/vae/minimax_h3_audio_vae_fp32.safetensors
-MODELO_LLM=$MD/text_encoders/qwen3vl_32b_minimax_h3-Q4_K_M.gguf
-UPSCALER=$MD/upscalers/RealESRGAN_x4plus.pth
+MODELO_DIFF=$MD/modelos/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf
+MODELO_VAE=$MD/modelos/vae/minimax_h3_video_vae_fp16.safetensors
+MODELO_AVAE=$MD/modelos/vae/minimax_h3_audio_vae_fp32.safetensors
+MODELO_LLM=$MD/modelos/text_encoders/qwen3vl_32b_minimax_h3-Q4_K_M.gguf
+UPSCALER=$MD/modelos/upscalers/RealESRGAN_x4plus.pth
 
 # ── Parámetros de generación ───────────────────────────────────────────────
 # Lo que el usuario puso en el ENTORNO manda siempre. Se guarda aquí antes de

@@ -25,10 +25,11 @@ exigir_herramientas ffmpeg ffprobe || exit 1
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/vram.sh"
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/prompt.sh"
 PROD=$MD/produccion
+CAL=$MD/calidad   # las herramientas de medida viven aparte
 
 GUION=${1:?falta el guion}; NOMBRE=${2:?falta el nombre}
 FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
-MODELO=${MODELO:-$MD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
+MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 
 OBRA=$PROD/obra/$NOMBRE; mkdir -p "$OBRA/anclas" "$PROD/logs"
 [ -f "$GUION" ] || { echo "no existe el guion: $GUION"; exit 1; }
@@ -195,15 +196,15 @@ RS=$(ffp -v error -show_entries format=duration -of default=nw=1:nk=1 "$FINAL")
 DEST_F="$DEST/$NOMBRE-${RWH%,*}x${RWH#*,}-$(awk "BEGIN{printf \"%.0f\",$RS}")s-$STAMP.mp4"
 mkdir -p "$DEST"; mv "$FINAL" "$DEST_F"
 echo "═══ LISTO: $DEST_F ═══"
-python3 "$PROD/auditar.py" contacto "$DEST_F" "$OBRA/contacto.jpg" >/dev/null && echo "    contactos: $OBRA/contacto.jpg"
+python3 "$CAL/auditar.py" contacto "$DEST_F" "$OBRA/contacto.jpg" >/dev/null && echo "    contactos: $OBRA/contacto.jpg"
 # La cobertura de voz SOLO significa algo si la pieza tiene dialogo. En un
 # plano de manos o un paisaje no hay nadie hablando: el detector lee el cello y
 # el ambiente como voz continua, saca "voz 100.0%" y dictamina ATROPELLADO. Es
 # una falsa alarma del mismo tipo que el recorte central de evaluar2 — la medida
 # da por hecho el formato de retrato hablado.
 if printf '%s\n' "${TIPOS[@]}" | grep -qx 'habla'; then
-  python3 "$PROD/auditar.py" habla "$DEST_F"
+  python3 "$CAL/auditar.py" habla "$DEST_F"
 else
   echo "  (sin tomas habladas: me salto la cobertura de voz, no aplica)"
 fi
-python3 "$PROD/auditar.py" audio "$DEST_F"
+python3 "$CAL/auditar.py" audio "$DEST_F"

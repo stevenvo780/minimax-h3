@@ -2,7 +2,7 @@
 # Genera en la 5070 Ti a baja resolucion y escala x4 repartiendo frames entre AMBAS GPU -> 1080p.
 # Uso: [FRAMES=345 STEPS=20 W=512 H=288 NAME=mi-clip] generar-1080p.sh "prompt"
 set -u
-. "$(dirname "${BASH_SOURCE[0]}")/lib/comun.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 
 WORK=$(mktemp -d /tmp/h3-1080p-XXXXXX)
 trap 'rm -rf "$WORK"' EXIT

@@ -58,7 +58,7 @@ else
   echo "    512x288, 22 frames, 8 pasos — el minimo que ejercita el camino entero"
   T0=$SECONDS
   W=512 H=288 FRAMES=22 STEPS=8 OUT=$T/humo.mp4 \
-    bash "$RAIZ/h3.sh" "A man sits in a dim study and looks at the camera." > "$T/gen.log" 2>&1
+    bash "$RAIZ/herramientas/h3.sh" "A man sits in a dim study and looks at the camera." > "$T/gen.log" 2>&1
   echo "    termino en $((SECONDS-T0))s"
   paso "sd-cli escribio en <salida>.mp4.avi"
   [ -f "$T/humo.mp4.avi" ] && si || { no "no existe $T/humo.mp4.avi"; tail -12 "$T/gen.log"; }
@@ -69,7 +69,7 @@ else
     paso "sale a la resolucion pedida"
     WH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$T/humo.mp4.avi" 2>/dev/null)
     [ "$WH" = "512,288" ] && si || no "resolucion=$WH"
-    paso "h3.sh anuncia la ruta REAL"
+    paso "herramientas/h3.sh anuncia la ruta REAL"
     grep -q "$T/humo.mp4.avi" "$T/gen.log" && si || no "no imprimio la ruta .avi"
   fi
 fi

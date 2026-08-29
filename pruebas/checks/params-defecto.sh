@@ -13,12 +13,12 @@ COMUN="$RAIZ/lib/comun.sh"
 [ -f "$COMUN" ] || fallo "no existe $COMUN (params_defecto vive ahi: sin el, cada script vuelve a fijar W/H/FRAMES/STEPS por su cuenta)"
 
 # script -> "W H FRAMES STEPS" propios (sin entorno)
-SCRIPTS="h3.sh generar-1080p.sh encadenar.sh produccion/producir.sh proyecto-minuto/generar.sh"
+SCRIPTS="herramientas/h3.sh herramientas/generar-1080p.sh herramientas/encadenar.sh produccion/producir.sh proyecto-minuto/generar.sh"
 esperado_de() {
   case "$1" in
-    "h3.sh")                      echo "864 480 56 20" ;;
-    "generar-1080p.sh")           echo "512 288 56 20" ;;
-    "encadenar.sh")               echo "1376 768 124 20" ;;
+    "herramientas/h3.sh")           echo "864 480 56 20" ;;
+    "herramientas/generar-1080p.sh") echo "512 288 56 20" ;;
+    "herramientas/encadenar.sh")    echo "1376 768 124 20" ;;
     "produccion/producir.sh")     echo "1376 768 107 20" ;;
     "proyecto-minuto/generar.sh") echo "1376 768 107 20" ;;
     *) return 1 ;;
