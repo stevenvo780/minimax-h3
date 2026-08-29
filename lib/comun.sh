@@ -46,6 +46,42 @@ params_defecto() {
 # Sin -nostdin, ffmpeg lee del stdin del bucle `while read` que lo invoca y se
 # come líneas del guion: planos que desaparecen sin un solo mensaje de error.
 # Usar ff/ffp en lugar de ffmpeg/ffprobe en TODO el proyecto.
+# ── continuidad de luminancia entre tomas ──────────────────────────────────
+# El modelo, al re-anclar en una escena oscura, devuelve una toma mas CLARA que
+# la de partida. Medido en 'paisaje': la toma 2 salio un 50% mas clara que la 1,
+# y en la hoja de contactos se ve como si alguien subiera las luces a mitad de
+# pieza. El ancla NO tiene la culpa: se comprobo que el PNG extraido es identico
+# pixel a pixel al fotograma de origen (diferencia maxima 0 en RGB24).
+#
+# Lo importante: ese escalon de brillo se disfraza de perdida de calidad. La
+# misma pieza medida sin corregir daba +38% de energia de bordes entre la toma 1
+# y la 2, lo que parece realce acumulado; igualando SOLO la luminancia el escalon
+# cae a -7.1%. No habia nada mas nitido — una imagen mas clara enseña bordes que
+# estaban escondidos en la sombra.
+#
+# Por eso esto NO es la palanca de desenfoque que se descarto: aquella devolvia
+# la energia de bordes a base de destruir poro y pelo de barba. Esta es una
+# ganancia lineal de luminancia, y se comprobo que la deriva interna de la toma
+# no se mueve (bordes +1.8% antes, +2.3% despues).
+luminancia_mediana() {  # <video> -> YAVG mediana, o vacio si no se puede medir
+  ffmpeg -nostdin -v info -i "$1" -an \
+    -vf "signalstats,metadata=print:key=lavfi.signalstats.YAVG" -f null - 2>&1 \
+  | sed -n 's/.*YAVG=\([0-9.]*\).*/\1/p' \
+  | sort -n | awk '{v[NR]=$1} END{ if (NR) print v[int((NR+1)/2)] }'
+}
+
+# Ganancia para llevar <video> al nivel de <referencia>. Acotada a [0.5, 2.0]:
+# una medicion loca no puede arrasar una toma buena, solo dejarla a medio
+# corregir. Devuelve 1 (no tocar) si algo no se puede medir.
+ganancia_nivel() {  # <video> <referencia>
+  local y r g
+  y=$(luminancia_mediana "$1"); r=$(luminancia_mediana "$2")
+  case "$y" in ''|0|0.0|0.00) echo 1; return 0 ;; esac
+  case "$r" in ''|0|0.0|0.00) echo 1; return 0 ;; esac
+  g=$(awk -v r="$r" -v y="$y" 'BEGIN{ g=r/y; if(g<0.5)g=0.5; if(g>2.0)g=2.0; printf "%.4f", g }')
+  echo "$g"
+}
+
 # ── comprobacion de herramientas ───────────────────────────────────────────
 # ffmpeg y ffprobe NO son opcionales: sin ellos no hay extraccion de anclas ni
 # montaje. Se comprueba AL ARRANCAR y no al usarlos, porque el primer uso real

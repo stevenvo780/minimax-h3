@@ -160,11 +160,25 @@ fi
 # ── montaje: fundido entre tomas, que son cortes de verdad ─────────────────
 echo "═══ montando $N tomas ═══"
 MONT=$OBRA/montaje; mkdir -p "$MONT"; rm -f "$MONT"/*.mp4 "$MONT/lista.txt"
+# La toma 1 es la referencia de luminancia: es la unica generada limpia, sin
+# ancla, asi que es el aspecto "verdadero" de la escena. Las demas se igualan a
+# ella. Ver luminancia_mediana() en comun.sh para el porque.
+REF=$(ls "$OBRA"/t[0-9][0-9].avi 2>/dev/null | head -1)
 i=0
 for f in "$OBRA"/t[0-9][0-9].avi; do
   i=$((i+1)); n=$(printf %02d $i)
   D=$(ffp -v error -show_entries format=duration -of default=nw=1:nk=1 "$f")
-  ff -y -v error -i "$f" \
+  VF=""
+  if [ "$i" -gt 1 ] && [ -n "$REF" ]; then
+    G=$(ganancia_nivel "$f" "$REF")
+    # Por debajo del 2% no se toca: corregir ruido de medida solo añade una
+    # pasada de filtro y no arregla nada que se vea.
+    if awk -v g="$G" 'BEGIN{exit !(g<0.98 || g>1.02)}'; then
+      VF="-vf lutyuv=y=val*$G"
+      echo "  toma $n: nivelada a la toma 1 (ganancia $G)"
+    fi
+  fi
+  ff -y -v error -i "$f" $VF \
     -af "loudnorm=I=-19:TP=-2:LRA=7,afade=t=in:st=0:d=0.25,afade=t=out:st=$(awk "BEGIN{print $D-0.25}"):d=0.25" \
     -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -c:a aac -b:a 192k "$MONT/$n.mp4" \
     && echo "file '$MONT/$n.mp4'" >> "$MONT/lista.txt" || echo "  clip $n fallo, omitido"
