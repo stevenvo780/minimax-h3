@@ -127,6 +127,16 @@ mapfile -t TIPOS      < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' -v d="$
 # es la unica forma de meter un SEGUNDO interlocutor, porque toda toma anclada
 # hereda la cara de la toma 1.
 mapfile -t MODOS     < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' '{m=$3; gsub(/ /,"",m); print (m==""?"ancla":m)}')
+# Campo 5 OPCIONAL: la escena de ESA toma, que sustituye a @ESCENA.
+#
+# Hacia falta para meter un segundo interlocutor. @ESCENA es global y se antepone
+# a TODAS las tomas, asi que pedir una mujer en el contenido de una toma daba un
+# prompt que empezaba "un hombre de cincuenta y cinco con barba..." y terminaba
+# "...una mujer de cincuenta con pelo plateado". Ganaba la escena: 5-dialectica
+# salio con el mismo hombre en las tres apariciones de la segunda voz.
+#
+# No era un limite del modelo. Era que el guion no podia decir otra cosa.
+mapfile -t ESCENAS   < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' '{e=$5; print e}')
 N=${#CONTENIDOS[@]}
 [ "$N" -gt 0 ] || { echo "el guion no tiene lineas HABLA| ni TOMA|"; exit 1; }
 for t in "${TIPOS[@]}"; do
@@ -146,7 +156,12 @@ if [ "${VALIDAR:-0}" = 1 ]; then
   for i in "${!CONTENIDOS[@]}"; do
     n=$((i+1))
     echo "───── toma $n [${TIPOS[$i]}] ─────"
-    construir_prompt "${TIPOS[$i]}" "$ESCENA" "${CONTENIDOS[$i]}" "$AMBIENTE" "$MUSICA" \
+    # La MISMA escena que usara generar(): si VALIDAR enseñara $ESCENA mientras la
+    # generacion usa la escena propia de la toma, estaria mintiendo justo en lo
+    # unico que sirve para revisar un guion sin gastar GPU.
+    _e=${ESCENAS[$i]:-}; _e=${_e:-$ESCENA}
+    [ -n "${ESCENAS[$i]:-}" ] && echo "  (escena propia de esta toma)"
+    construir_prompt "${TIPOS[$i]}" "$_e" "${CONTENIDOS[$i]}" "$AMBIENTE" "$MUSICA" \
       || { echo "  FALLO construyendo el prompt de la toma $n"; exit 1; }
     echo
   done
@@ -163,7 +178,10 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   local i=$1 cont=$2 ancla=${3:-} tipo=${4:-habla}
   local out=$OBRA/t$(printf %02d "$i")
   [ -f "$out.avi" ] && { echo "  toma $i ya existe, salto"; return 0; }
-  local prompt; prompt=$(construir_prompt "$tipo" "$ESCENA" "$cont" "$AMBIENTE" "$MUSICA") || return 1
+  local esc_toma=${ESCENAS[$((i-1))]:-}
+  local esc=${esc_toma:-$ESCENA}
+  [ -n "$esc_toma" ] && echo "  toma $i: escena propia (sustituye a @ESCENA)"
+  local prompt; prompt=$(construir_prompt "$tipo" "$esc" "$cont" "$AMBIENTE" "$MUSICA") || return 1
   local extra=(); [ -n "$ancla" ] && extra+=(--init-img "$ancla")
   # Consciente del tamaño del trabajo: el buffer de computo crece con
   # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.

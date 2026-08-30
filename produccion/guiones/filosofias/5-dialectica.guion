@@ -1,30 +1,31 @@
 # ── NIVEL 5 · DIALECTICA · DOS interlocutores que se responden ────────────
-# 8 tomas. El salto sobre todo lo anterior: la pieza deja de ser una voz y pasa
-# a ser una CONVERSACION, con dos rostros que se alternan y se contestan.
+# 8 tomas alternando dos rostros. El salto sobre todo lo anterior: la pieza deja
+# de ser una voz y pasa a ser una CONVERSACION.
 #
-# Como se consigue, y por que hasta hoy era imposible: toda toma anclada hereda
-# la cara de la toma 1, asi que el anclaje —que es lo que da continuidad— impide
-# por construccion que aparezca un segundo sujeto. La salida es el modo 'inicio'
-# a mitad de pieza: arranca limpio y el modelo inventa una cara nueva.
+# PRIMER INTENTO FALLIDO, y queda escrito porque explica el diseño: se puso la
+# descripcion de la mujer en el CONTENIDO de la toma, confiando en que el modo
+# 'inicio' bastara. No basto. @ESCENA es global y se antepone a todas las tomas,
+# asi que el prompt decia "un hombre de cincuenta y cinco con barba... una mujer
+# de cincuenta con pelo plateado" y ganaba la escena: salio el mismo hombre.
 #
-# Lo que hasta ahora era el FALLO que motivo todo el anclaje ("arrancar limpio
-# hacia que el modelo reinventara la cara, parecia otra persona") se convierte
-# aqui en la herramienta. El mismo comportamiento, usado a proposito.
+# La solucion es el CAMPO 5 del guion, que sustituye @ESCENA en esa toma:
+#     TOMA|contenido|modo|tipo|escena propia
+# El modo 'inicio' hace que arranque sin ancla —toda toma anclada heredaria la
+# cara de la toma 1— y el campo 5 le dice de quien es la cara.
 #
-# RIESGO CONOCIDO, y es lo que esta pieza pone a prueba: las tomas 'inicio' no
-# garantizan que el segundo rostro sea CONSISTENTE entre sus apariciones. Puede
-# salir un interlocutor distinto cada vez. Si eso pasa, el nivel 5 esta fuera
-# del alcance del metodo y sabremos donde esta el techo.
+# La luz distingue a los dos: el desde la IZQUIERDA, ella desde la DERECHA. Es
+# la convencion de campo/contracampo y ayuda a que se lean como dos personas.
+
 @TIPO habla
-@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, deep-set brown eyes and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the LEFT wraps gently around his face. He is seated against a plain matte black studio backdrop. Static locked-off camera, fine film grain.
-@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the speaker.
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard, deep-set brown eyes and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the LEFT wraps around his face. He is seated against a plain matte black studio backdrop. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm dialogue spoken by the speaker.
 @MUSICA A single sustained low cello note held quietly and continuously beneath the dialogue, unchanging throughout.
 
-TOMA|Todo lo que existe merece perecer. Eso decía Hegel, y no lo decía con amargura: lo decía como quien enuncia una ley.|inicio|habla
-TOMA|Una idea se afirma. Y al afirmarse, produce su propia contradicción. No desde fuera: desde dentro.|ancla|habla
-TOMA|A woman of about fifty with silver hair pulled back and pale grey eyes, wearing a dark green wool coat, seen in tight close-up against the same matte black backdrop, lit softly from the RIGHT. She says, <d>[Spanish] Pero eso supone que la contradicción se resuelve. ¿Y si no se resuelve nunca?</d>|inicio|habla
-TOMA|Entonces no habría historia, sólo repetición. Y sin embargo algo se mueve: lo que era impensable hace un siglo hoy es evidente.|ancla|habla
-TOMA|A woman of about fifty with silver hair pulled back and pale grey eyes, wearing a dark green wool coat, tight close-up against the same matte black backdrop, lit softly from the RIGHT. She says, <d>[Spanish] O simplemente cambió quién tiene el poder de decir qué es evidente.</d>|inicio|habla
-TOMA|Eso es exactamente lo que Marx le respondió a Hegel. Que la dialéctica estaba en pie sobre la cabeza y había que ponerla sobre los pies.|ancla|habla
-TOMA|A woman of about fifty with silver hair pulled back and pale grey eyes, wearing a dark green wool coat, tight close-up against the same matte black backdrop, lit softly from the RIGHT. She says, <d>[Spanish] Entonces la síntesis no es un descubrimiento. Es una conquista.</d>|inicio|habla
-TOMA|Sí. Y por eso nunca está garantizada. Ninguna síntesis es el final: es sólo la próxima tesis esperando su contradicción.|ancla|habla
+TOMA|Todo lo que existe merece perecer. Eso decía Hegel, y no lo decía con amargura: lo decía como quien enuncia una ley.|inicio|habla|
+TOMA|Una idea se afirma. Y al afirmarse, produce su propia contradicción. No desde fuera: desde dentro.|ancla|habla|
+TOMA|Pero eso supone que la contradicción se resuelve. ¿Y si no se resuelve nunca?|inicio|habla|A woman of about fifty with silver hair pulled back tightly and pale grey eyes, wearing a dark green wool coat over a black top. Tight close-up: her face fills the frame from forehead to chin. A large soft diffused key light from the RIGHT wraps around her face, with soft shadow on the left. She is seated against a plain matte black studio backdrop that fills the entire frame behind her. Static locked-off camera, fine film grain.
+TOMA|Entonces no habría historia, sólo repetición. Y sin embargo algo se mueve: lo que era impensable hace un siglo hoy es evidente.|ancla|habla|
+TOMA|O simplemente cambió quién tiene el poder de decir qué es evidente.|inicio|habla|A woman of about fifty with silver hair pulled back tightly and pale grey eyes, wearing a dark green wool coat over a black top. Tight close-up: her face fills the frame from forehead to chin. A large soft diffused key light from the RIGHT wraps around her face, with soft shadow on the left. She is seated against a plain matte black studio backdrop that fills the entire frame behind her. Static locked-off camera, fine film grain.
+TOMA|Eso es exactamente lo que Marx le respondió a Hegel. Que la dialéctica estaba en pie sobre la cabeza y había que ponerla sobre los pies.|ancla|habla|
+TOMA|Entonces la síntesis no es un descubrimiento. Es una conquista.|inicio|habla|A woman of about fifty with silver hair pulled back tightly and pale grey eyes, wearing a dark green wool coat over a black top. Tight close-up: her face fills the frame from forehead to chin. A large soft diffused key light from the RIGHT wraps around her face, with soft shadow on the left. She is seated against a plain matte black studio backdrop that fills the entire frame behind her. Static locked-off camera, fine film grain.
+TOMA|Sí. Y por eso nunca está garantizada. Ninguna síntesis es el final: es sólo la próxima tesis esperando su contradicción.|ancla|habla|
