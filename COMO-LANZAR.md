@@ -215,6 +215,12 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   `sd-cli` tiene la memoria al límite no significa lo mismo que uno con la máquina en reposo:
   pasó el 2026-08-30, un fallo que desapareció al repetirlo sin cambiar nada. Antes de perseguir
   un rojo, repite la suite con la GPU libre.
+- **`te=disk` parece resolver los OOM: úsalo.** `--params-backend diffusion=cpu,te=disk` deja
+  los 17 GB del codificador de texto en el fichero en vez de en RAM; sólo hace falta al arrancar,
+  para condicionar el prompt. Medido tras aplicarlo: **10 reintentos antes → 0 después**, y el
+  contador `oom_kill` del kernel **congelado**, con una toma anclada pasando a la primera donde
+  otra había caído seis veces. Señal fuerte, no prueba cerrada: son 3 tomas y el fallo era
+  probabilístico.
 - **LA CAUSA RAÍZ de los OOM: los pesos no caben, y punto.** El modelo podado ocupa **10,6 GB**
   y el codificador de texto otros **17,0 GB** — **27,6 GB de pesos en un cgroup de 24**. Funciona
   sólo porque están mapeados desde disco y el kernel expulsa páginas (el codificador no hace

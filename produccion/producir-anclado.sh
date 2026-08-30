@@ -84,6 +84,14 @@ FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
 # tomas ancladas de 345 fotogramas, que es donde falla. Se mide con las piezas
 # que vienen.
 #
+# RESULTADO 2026-08-30, medido tras aplicarlo:
+#     reintentos    10 en la cola antes  ->  0 desde te=disk
+#     oom_kill      subiendo sin parar   ->  CONGELADO en 46
+#     tomas         cinismo t2 cayo 6 veces -> 3 seguidas sin un fallo, una anclada
+# El contador de OOM del kernel no se movio: no es que los reintentos lo tapen,
+# es que no hay OOM. Cautela: son 3 tomas y el fallo era probabilistico, asi que
+# es señal fuerte y no prueba cerrada.
+#
 # Para volver atras: PARAMS_BK="diffusion=cpu"
 PARAMS_BK=${PARAMS_BK:-diffusion=cpu,te=disk}
 
