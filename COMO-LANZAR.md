@@ -144,13 +144,52 @@ watch -n5 nvidia-smi --query-gpu=index,memory.free --format=csv
 versión de glibc más nueva que la del sistema, trabaja sobre una **copia** del
 binario sin esa exigencia. El original nunca se toca.
 
-Los modelos completos piden ~42 GB de RAM. Con el **podado** bajan a 33 GB y
-entran en un contenedor de 24 GB + 24 de swap:
+Los modelos completos piden ~42 GB de RAM. Con el **podado** bajan a 33 GB. Eso
+importaba cuando el contenedor tenía 24 GB; desde el 2026-08-30 tiene **125 GB** y
+el podado se usa por costumbre, no por necesidad. `lib/comun.sh` lo pone por
+defecto porque es lo medido; el entero cabe ahora, pero **no está probado**:
 
 ```bash
 MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   produccion/producir-toma-unica.sh guion.guion nombre 345 736 416 20
 ```
+
+## Resolución: qué se puede y qué no
+
+Todo lo entregado hasta el 2026-08-30 sale a **736x416**, y eso es poco en
+cualquier pantalla. Hay dos palancas y **no son intercambiables**:
+
+```bash
+produccion/sonda-resolucion.sh 107          # fija fotogramas, sube el tamaño
+produccion/sonda-duracion.sh 1024 576       # fija el tamaño, sube los fotogramas
+produccion/escalar.sh videos/entregas/x.mp4 # acabado x4 en la 2060
+```
+
+Las dos sondas **generan de verdad**, no estiman: el buffer de cómputo crece con
+el **producto** `fotogramas x ancho x alto`, así que no existe «la resolución
+máxima» ni «la duración máxima», existe una curva. Y la elección que sale de ella
+es de forma, no técnica: 10 planos de 8 s a 736x416 son 80 s de pieza; 10 planos
+de 4,5 s a 1152x648 son 45 s con el doble de detalle.
+
+Las tablas van a `medidas/`.
+
+### El escalador SÍ sirve, y las dos medidas obvias dicen que no
+
+`RealESRGAN x4` sobre una pieza terminada mejora la imagen de forma visible
+—arrugas definidas donde el lanczos las funde— y sin embargo mide **−5,5 % de
+bordes** y **+4,0 % de parpadeo**. Sobel no mide nitidez, mide gradiente, y el
+grano de película es gradiente: el escalador lo limpia y cambia gradiente
+repartido por detalle concentrado. El detalle completo, en
+`medidas/escalador-esrgan.md`.
+
+Es **acabado**, no generación: no inventa detalle que no se generó. Corre en la
+**RTX 2060**, que no compite con la generación, pero a ~20 s/fotograma son ~6 h
+por pieza de 46 s. Úsalo sobre una pieza ya aprobada, nunca durante la iteración.
+
+**El tile hay que negociarlo, no fijarlo.** Con `--upscale-tile-size 512` la 2060
+aborta SIEMPRE (`cublasCreate_v2 ... resource allocation failed`). La versión
+anterior de `escalar.sh` lo tenía fijo en 512: fallaban los N fotogramas, se
+negaba —con razón— a montar un vídeo incompleto, y **nunca escaló nada**.
 
 ## Qué NO hacer
 
@@ -236,6 +275,15 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   contador `oom_kill` del kernel **congelado**, con una toma anclada pasando a la primera donde
   otra había caído seis veces. Señal fuerte, no prueba cerrada: son 3 tomas y el fallo era
   probabilístico.
+- **[CADUCADO el 2026-08-30] El cgroup ya no son 24 GB, son 125.** Todo lo que
+  viene a continuación sobre OOM de RAM describe una máquina que ya no es esta:
+  `memory.max` = 125 GB y los 73 `oom_kill` de `memory.events` son históricos.
+  **No se borra porque el razonamiento sigue siendo correcto** y vuelve a aplicar
+  en cuanto el contenedor se encoja. Lo que hoy limita la resolución es sólo la
+  VRAM. Compruébalo antes de creerte nada de lo de abajo:
+  ```bash
+  awk '{printf "%.0f GB\n", $1/1073741824}' /sys/fs/cgroup/memory.max
+  ```
 - **LA CAUSA RAÍZ de los OOM: los pesos no caben, y punto.** El modelo podado ocupa **10,6 GB**
   y el codificador de texto otros **17,0 GB** — **27,6 GB de pesos en un cgroup de 24**. Funciona
   sólo porque están mapeados desde disco y el kernel expulsa páginas (el codificador no hace
@@ -286,6 +334,23 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   se ve mucho mejor, mide **−4,2 %** de detalle fino. Y es correcto: cada pelo aislado contra
   fondo negro es un borde de máximo contraste, así que lo erizado puntúa más alto. Optimizar
   ese número lleva derecho a la barba de cepillo. **Aquí hay que mirar, no medir.**
+- **No iguales el brillo de un plano que es distinto A PROPÓSITO.** El montaje
+  nivela la luminancia de cada toma contra la toma 1, y eso es correcto para una
+  toma **anclada**: la diferencia es deriva del anclado. Pero una toma en modo
+  `inicio` con escena propia —un puerto frío al amanecer, la cara de un segundo
+  interlocutor— es otra imagen por decisión, y forzarla al brillo de un primer
+  plano cálido **aplana el contraste que es la mitad de la forma**. La ganancia
+  está acotada a `[0,5 , 2,0]`, así que no salta en ninguna métrica: se ve o no
+  se ve. `producir-anclado.sh` ya sólo nivela lo anclado y sin escena propia, y
+  deja constancia en el log de lo que NO nivela.
+- **Sourea `lib/comun.sh` y nada más.** Ese fichero carga ya `compat.sh`,
+  `prompt.sh` y `vram.sh`. Antes cada script tenía que acordarse de los cuatro, y
+  olvidarse no da un error al cargar: da un `command not found` **a mitad de
+  trabajo**. Costó dos veces el mismo día — seis scripts morían al tocar la GPU
+  por no tener `compat.sh`, y la sonda de resolución esperó **hora y media** a
+  que se liberase la tarjeta para caerse en su primera línea con
+  `construir_prompt: command not found`. Si añades otra librería, cárgala desde
+  `comun.sh`, no desde cada script.
 - **No des por buena una nota sin saber qué mide.** Tres medidas de este proyecto han dado
   falsas alarmas: `evaluar2` fuera del retrato hablado, la cobertura de voz en planos mudos, y
   un «audio 5/15» que en realidad decía que mis clips eran más limpios que la referencia.
