@@ -69,5 +69,22 @@ fi
 gnada=$(ganancia_nivel "$T/no-existe.avi" "$T/claro.avi" 2>/dev/null)
 [ "$gnada" = "1" ] || { echo "FALLA $nombre: con un fichero inexistente dio '$gnada', esperaba 1"; fallos=1; }
 
+
+# ── A QUE tomas se les aplica ─────────────────────────────────────────────
+# La nivelacion corrige la DERIVA del anclado: una toma anclada a la toma 1
+# deberia parecerse a ella y si no, se iguala. Pero una toma en modo 'inicio'
+# con escena propia es otra imagen A PROPOSITO —un puerto frio al amanecer, la
+# cara de un segundo interlocutor— y forzarla al brillo de un primer plano
+# calido no corrige un defecto: destruye la decision. En una pieza documental
+# ese contraste es la mitad de la forma.
+S="$RAIZ/produccion/producir-anclado.sh"
+m=$(sed -n '/montando \$N tomas/,/fundir.py/p' "$S")
+printf '%s' "$m" | grep -q '_propia' || {
+  echo "FALLA $nombre: el montaje nivela sin mirar si la toma tiene escena propia"; exit 1; }
+printf '%s' "$m" | grep -q '_modo' || {
+  echo "FALLA $nombre: el montaje nivela sin mirar si la toma va en modo inicio"; exit 1; }
+printf '%s' "$m" | grep -q 'NO se nivela' || {
+  echo "FALLA $nombre: el montaje no deja constancia de las tomas que NO nivela"; exit 1; }
+
 [ $fallos -eq 0 ] && echo "ok $nombre (sube=$gsube baja=$gbaja medio=${gm:-n/a})"
 exit $fallos

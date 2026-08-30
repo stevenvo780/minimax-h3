@@ -307,7 +307,18 @@ for f in "$OBRA"/t[0-9][0-9].avi; do
   i=$((i+1)); n=$(printf %02d $i)
   D=$(ffp -v error -show_entries format=duration -of default=nw=1:nk=1 "$f")
   VF=""
-  if [ "$i" -gt 1 ] && [ -n "$REF" ]; then
+  # Solo se nivela lo que DEBERIA parecerse a la toma 1: las tomas ancladas a
+  # ella y sin escena propia. Ahi la diferencia de luminancia es deriva del
+  # anclado y corregirla es arreglar un defecto.
+  #
+  # Una toma en modo 'inicio' con escena propia es otra imagen A PROPOSITO: un
+  # puerto frio al amanecer, un plano de madera con luz rasante, la cara de un
+  # segundo interlocutor. Igualarla a un primer plano calido no corrige nada,
+  # DESTRUYE la decision. En una pieza documental el contraste entre el rostro
+  # y lo que se muestra es la mitad de la forma.
+  _propia=${ESCENAS[$((i-1))]:-}
+  _modo=${MODOS[$((i-1))]:-ancla}
+  if [ "$i" -gt 1 ] && [ -n "$REF" ] && [ -z "$_propia" ] && [ "$_modo" != inicio ]; then
     G=$(ganancia_nivel "$f" "$REF")
     # Por debajo del 2% no se toca: corregir ruido de medida solo añade una
     # pasada de filtro y no arregla nada que se vea.
@@ -315,6 +326,8 @@ for f in "$OBRA"/t[0-9][0-9].avi; do
       VF="-vf lutyuv=y=val*$G"
       echo "  toma $n: nivelada a la toma 1 (ganancia $G)"
     fi
+  elif [ "$i" -gt 1 ] && { [ -n "$_propia" ] || [ "$_modo" = inicio ]; }; then
+    echo "  toma $n: imagen propia a proposito, NO se nivela"
   fi
   ff -y -v error -i "$f" $VF \
     -af "loudnorm=I=-19:TP=-2:LRA=7,afade=t=in:st=0:d=0.25,afade=t=out:st=$(awk "BEGIN{print $D-0.25}"):d=0.25" \
