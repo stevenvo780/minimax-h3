@@ -199,6 +199,19 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   ```
   Eso es **VRAM**, no RAM. Pasó cuando el escritorio del usuario subió de 3,5 a 5,7 GB y la
   generación dejó de caber. Se perdió una tarde ajustando umbrales de RAM por no leer ese log.
+- **LA CAUSA RAÍZ de los OOM: los pesos no caben, y punto.** El modelo podado ocupa **10,6 GB**
+  y el codificador de texto otros **17,0 GB** — **27,6 GB de pesos en un cgroup de 24**. Funciona
+  sólo porque están mapeados desde disco y el kernel expulsa páginas (el codificador no hace
+  falta durante la difusión), y **revienta cuando el desalojo no llega a tiempo**.
+  Consecuencias que hay que aceptar:
+  1. El fallo es **probabilístico** y depende del ritmo de paginación, no de los parámetros. Eso
+     explica 16 tomas seguidas sin un fallo un día y fallos constantes al siguiente con la misma
+     configuración.
+  2. **Ningún ajuste del pipeline lo arregla.** Se probaron cinco —umbral de RAM, tope de VRAM,
+     descuento de VRAM, `ram_libre_mb`, menos fotogramas— y ninguno cambió nada, porque ninguno
+     tocaba la causa. Antes de "arreglar" el presupuesto otra vez, lee esto.
+  3. La respuesta correcta contra un fallo probabilístico es **reintentar** (`REINTENTOS=6`), no
+     seguir afinando. Las palancas reales serían un cgroup mayor o un codificador más pequeño.
 - **`sd-cli` llega a 19,3 GB de RAM y el contenedor tiene 24. El margen es CERO.** Medido
   muestreando a **1 Hz** y guardando el máximo; muestreando cada 5 s salían 14,2 GB, porque el
   pico se escapaba entre muestras. **Si mides un pico, muestrea rápido o no lo estás midiendo.**

@@ -53,6 +53,26 @@ FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
 #
 # 12000 es alcanzable y sigue siendo generoso: las ~20 tomas que salieron bien
 # arrancaron con el umbral viejo de 8000. No hace falta mas.
+# Cuantas veces reintentar una toma que muere por OOM.
+#
+# Sube de 3 a 6 por una razon medida, no por insistir a ciegas: los pesos NO
+# CABEN en el contenedor. El modelo podado ocupa 10.6 GB y el codificador de
+# texto otros 17.0, o sea 27.6 GB de pesos en un cgroup de 24. Funciona solo
+# porque estan mapeados desde disco y el kernel va expulsando paginas —el
+# codificador no hace falta durante la difusion— y REVIENTA cuando el desalojo
+# no llega a tiempo.
+#
+# Eso hace que el fallo sea probabilistico y dependa del ritmo de paginacion, no
+# de la configuracion. Explica lo que parecia inexplicable: 16 tomas seguidas sin
+# un fallo un dia, y fallos constantes al siguiente con los mismos parametros.
+# Cinco ajustes distintos (umbral de RAM, tope de VRAM, descuento de VRAM,
+# ram_libre_mb, menos fotogramas) no cambiaron nada porque ninguno tocaba la
+# causa.
+#
+# Contra un fallo probabilistico la respuesta correcta es reintentar, no seguir
+# afinando parametros. Cada reintento cuesta tiempo; perder la toma cuesta mas.
+REINTENTOS=${REINTENTOS:-6}
+
 RAM_NECESARIA=${RAM_NECESARIA:-8000}
 
 MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
@@ -142,13 +162,13 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   # completo los 20 pasos (1261 s) y el audio VAE, y murio justo ahi. Las tomas
   # 1-3 pasaron ese punto por poco. Reintentar cuesta tiempo pero no calidad.
   local intento=1
-  while [ $intento -le 3 ]; do
+  while [ $intento -le $REINTENTOS ]; do
   if [ $intento -gt 1 ]; then
     # El log tiene que decir que esta ESPERANDO y hasta cuando. Sin esto, los
     # 120 s de reposo mas la espera de RAM parecen la maquina colgada: Steven lo
     # reporto dos veces como "veo la PC quieta", y las dos tuvo que mirar el log
     # alguien para saber si estaba trabajando o muerta.
-    echo "  toma $i: reintento $intento/3 tras OOM · reposo de 120s hasta $(date -d '+120 seconds' +%H:%M:%S)"
+    echo "  toma $i: reintento $intento/$REINTENTOS tras OOM · reposo de 120s hasta $(date -d '+120 seconds' +%H:%M:%S)"
     sleep 120
     local w=0
     while [ "$(ram_libre_mb)" -lt "$RAM_NECESARIA" ] && [ $w -lt 900 ]; do
@@ -177,7 +197,7 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   tr '\r' '\n' < "$PROD/logs/$NOMBRE-t$i.log" | tail -3 | sed 's/^/      /'
   intento=$((intento+1))
   done
-  echo "  toma $i FALLO DEFINITIVO tras 3 intentos"
+  echo "  toma $i FALLO DEFINITIVO tras $REINTENTOS intentos"
   return 1
 }
 
