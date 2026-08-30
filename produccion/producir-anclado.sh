@@ -99,7 +99,7 @@ REINTENTOS=${REINTENTOS:-6}
 
 RAM_NECESARIA=${RAM_NECESARIA:-8000}
 
-MODELO=${MODELO:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
+MODELO=${MODELO:-$MODELO_DIFF}   # una sola fuente de verdad: lib/comun.sh
 
 OBRA=$PROD/obra/$NOMBRE; mkdir -p "$OBRA/anclas" "$PROD/logs"
 [ -f "$GUION" ] || { echo "no existe el guion: $GUION"; exit 1; }

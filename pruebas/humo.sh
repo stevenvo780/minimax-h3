@@ -23,7 +23,14 @@ si()   { echo "PASA";  OK=$((OK+1)); }
 no()   { echo "FALLA: $1"; MAL=$((MAL+1)); }
 salta(){ echo "SALTA ($1)"; SALT=$((SALT+1)); }
 
-HAY_SDCLI=0; "$RAIZ/bin/sd-cli" --help >/dev/null 2>&1 && HAY_SDCLI=1
+# Se pregunta por el sd-cli QUE USA LA PIPELINE, no por el binario en crudo.
+# El de bin/ no arranca en este contenedor (le falta libcudart.so.13); el que
+# corre es la copia que prepara lib/compat.sh. Preguntando por el crudo, el
+# humo declaraba "sin sd-cli" y SALTABA el bloque de generacion en la unica
+# maquina donde si se puede generar.
+HAY_SDCLI=0
+SDCLI_REAL=$(cd "$RAIZ" && bash -c '. lib/comun.sh 2>/dev/null; echo "$SDCLI"' 2>/dev/null)
+[ -n "$SDCLI_REAL" ] && "$SDCLI_REAL" --help >/dev/null 2>&1 && HAY_SDCLI=1
 HAY_FF=0;    command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 && HAY_FF=1
 HAY_GPU=0;   command -v nvidia-smi >/dev/null 2>&1 && [ -e /dev/nvidia0 ] && HAY_GPU=1
 

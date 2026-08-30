@@ -17,8 +17,25 @@ MD=${MD:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 # no las ve. Se puede apuntar a otro sitio exportando DEST.
 DEST=${DEST:-$MD/videos/entregas}
 
-SDCLI=$MD/bin/sd-cli
-MODELO_DIFF=$MD/modelos/diffusion_models/minimax_h3_fl2va-Q4_K_M.gguf
+# sd-cli no arranca tal cual en este contenedor: le falta libcudart.so.13 y se
+# compilo contra una glibc mas nueva. compat.sh resuelve las dos cosas (busca
+# CUDA en los venv del disco y copia el binario sin la exigencia de version).
+# Se sourcea AQUI, no en cada script: seis scripts que usan sd-cli no lo
+# sourceaban y morian con "libcudart.so.13: cannot open shared object file"
+# nada mas tocar la GPU. Paso de verdad: sd_upscale devolvia 127 desde
+# herramientas/generar-1080p.sh.
+if [ -z "${COMPAT_LISTO:-}" ]; then
+  . "$(dirname "${BASH_SOURCE[0]}")/compat.sh"
+  COMPAT_LISTO=1
+fi
+SDCLI=$(compat_sdcli "$MD/bin/sd-cli" 2>/dev/null) || SDCLI=$MD/bin/sd-cli
+
+# El modelo por defecto es el PODADO (11.4 GB), no el entero (18.8 GB).
+# No es una preferencia de calidad: el codificador de texto ocupa 17 GB y el
+# cgroup son 24 GB. 18.8+17 = 35.8 GB no entran y el OOM killer se lleva la
+# generacion con un "Killed" seco. Con el podado, 11.4+17 = 28.4 GB entran
+# mandando el codificador a disco (PARAMS_BK=diffusion=cpu,te=disk).
+MODELO_DIFF=${MODELO_DIFF:-$MD/modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf}
 MODELO_VAE=$MD/modelos/vae/minimax_h3_video_vae_fp16.safetensors
 MODELO_AVAE=$MD/modelos/vae/minimax_h3_audio_vae_fp32.safetensors
 MODELO_LLM=$MD/modelos/text_encoders/qwen3vl_32b_minimax_h3-Q4_K_M.gguf
