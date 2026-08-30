@@ -307,9 +307,19 @@ python3 "$CAL/auditar.py" contacto "$DEST_F" "$OBRA/contacto.jpg" >/dev/null && 
 # el ambiente como voz continua, saca "voz 100.0%" y dictamina ATROPELLADO. Es
 # una falsa alarma del mismo tipo que el recorte central de evaluar2 — la medida
 # da por hecho el formato de retrato hablado.
-if printf '%s\n' "${TIPOS[@]}" | grep -qx 'habla'; then
-  python3 "$CAL/auditar.py" habla "$DEST_F"
-else
+# La cobertura de voz se mide sobre la pieza ENTERA, asi que solo significa algo
+# si la palabra es lo dominante. En 4-fenomenologia —2 tomas habladas de 6— dio
+# "voz 98.2% -> ATROPELLADO" en una pieza pensada para estar callada media
+# duracion: el cello continuo rellena los silencios y el detector lo cuenta como
+# voz. Es la quinta falsa alarma de este tipo, asi que ahora la medida solo se
+# aplica cuando al menos la MITAD de las tomas son habladas.
+_nhabla=$(printf '%s\n' "${TIPOS[@]}" | grep -cx 'habla')
+if [ "$_nhabla" -eq 0 ]; then
   echo "  (sin tomas habladas: me salto la cobertura de voz, no aplica)"
+elif [ $((_nhabla * 2)) -lt "$N" ]; then
+  echo "  ($_nhabla de $N tomas habladas: me salto la cobertura de voz, que se mide"
+  echo "   sobre la pieza entera y daria un ATROPELLADO falso)"
+else
+  python3 "$CAL/auditar.py" habla "$DEST_F"
 fi
 python3 "$CAL/auditar.py" audio "$DEST_F"
