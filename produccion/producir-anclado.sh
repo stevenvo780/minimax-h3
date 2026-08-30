@@ -73,6 +73,16 @@ tipo_valido "$TIPO_DEF" || { echo "@TIPO desconocido: $TIPO_DEF (validos: $PROMP
 #   TOMA|<contenido>|<modo>|<tipo opcional>
 mapfile -t CONTENIDOS < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | cut -d'|' -f2)
 mapfile -t TIPOS      < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' -v d="$TIPO_DEF" '{t=$4; gsub(/ /,"",t); print (t==""?d:t)}')
+# El campo 3 es el MODO, y hasta hoy se leia... para nada: el script anclaba las
+# tomas 2..N a la toma 1 pasara lo que pasara, asi que 'inicio', 'ancla' y
+# 'encadena' daban exactamente lo mismo. El README documentaba unos modos que el
+# codigo ignoraba.
+#   ancla   (por defecto) arranca de un fotograma pristino de la toma 1
+#   inicio  arranca LIMPIO, sin imagen de partida: reinventa el sujeto
+# 'inicio' a mitad de pieza deja de ser un fallo y pasa a ser una herramienta:
+# es la unica forma de meter un SEGUNDO interlocutor, porque toda toma anclada
+# hereda la cara de la toma 1.
+mapfile -t MODOS     < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' '{m=$3; gsub(/ /,"",m); print (m==""?"ancla":m)}')
 N=${#CONTENIDOS[@]}
 [ "$N" -gt 0 ] || { echo "el guion no tiene lineas HABLA| ni TOMA|"; exit 1; }
 for t in "${TIPOS[@]}"; do
@@ -187,7 +197,12 @@ if [ "$N" -gt 1 ]; then
     echo "  ancla $k: segundo $POS -> $(basename "$A")"
   done
   for k in $(seq 2 "$N"); do
-    generar "$k" "${CONTENIDOS[$((k-1))]}" "$OBRA/anclas/a$(printf %02d "$k").png" "${TIPOS[$((k-1))]}" || exit 1
+    if [ "${MODOS[$((k-1))]}" = inicio ]; then
+      echo "  toma $k: modo 'inicio' — arranca limpia, sin ancla (sujeto nuevo)"
+      generar "$k" "${CONTENIDOS[$((k-1))]}" "" "${TIPOS[$((k-1))]}" || exit 1
+    else
+      generar "$k" "${CONTENIDOS[$((k-1))]}" "$OBRA/anclas/a$(printf %02d "$k").png" "${TIPOS[$((k-1))]}" || exit 1
+    fi
   done
 fi
 

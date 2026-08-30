@@ -1,0 +1,13 @@
+# ── NIVEL 2 · CINISMO · una voz repartida en cuatro tomas ─────────────────
+# Mismo tipo de plano en las cuatro, ancladas. 4 x 345f = 57 s.
+# Añade UNA dificultad sobre el nivel 1: mantener identidad y luz a traves de
+# tres cortes. Es la forma que ya se sabe que funciona.
+@TIPO habla
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the left wraps gently around his face, with soft gradual shadow on the right and no hard edges. He is seated against a plain matte black studio backdrop that fills the entire frame behind him. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
+@MUSICA A single sustained low cello note held quietly and continuously beneath the dialogue, unchanging throughout.
+
+TOMA|Diógenes vivía en un tonel. Cuando Alejandro Magno fue a verlo y le ofreció lo que quisiera, le pidió que se apartara, porque le tapaba el sol.|inicio|
+TOMA|No era una provocación vacía. Era una demostración. El hombre más poderoso del mundo no tenía nada que él necesitara.|ancla|
+TOMA|El cínico no desprecia las cosas. Desprecia la creencia de que las necesitas. Y esa creencia es la correa con la que te llevan.|ancla|
+TOMA|Por eso vivían a la intemperie: no por virtud, sino por experimento. Para averiguar cuánto de lo que llamamos necesario era sólo costumbre.|ancla|

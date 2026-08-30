@@ -1,0 +1,21 @@
+# ── NIVEL 3 · EL ABSURDO · la voz se interrumpe con planos de apoyo ───────
+# Alterna habla y detalle: 6 tomas, tres habladas y tres mudas de objeto.
+# Salto sobre el nivel 2: ya no basta con mantener UNA continuidad, hay que
+# saltar entre DOS mundos visuales —el rostro sobre negro y la piedra en la
+# mano— y que el conjunto siga leyendose como una sola pieza.
+#
+# El campo 4 de cada TOMA fija su tipo, sobreescribiendo el @TIPO general.
+# OJO: las tomas de detalle NO llevan voz. El modelo solo genera habla
+# sincronizada con una cara, asi que el discurso se INTERRUMPE en cada plano
+# de apoyo. Eso es una limitacion real, no una eleccion narrativa.
+@TIPO habla
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the left wraps gently around his face, with soft gradual shadow on the right and no hard edges. He is seated against a plain matte black studio backdrop that fills the entire frame behind him. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
+@MUSICA A single sustained low cello note held quietly and continuously beneath the dialogue, unchanging throughout.
+
+TOMA|Los dioses condenaron a Sísifo a subir una roca hasta la cima de una montaña, desde donde volvía a caer por su propio peso.|inicio|habla
+TOMA|A weathered hand closes slowly around a rough grey stone resting on dark earth, the fingers tightening.|ancla|detalle
+TOMA|Pensaron, con algún fundamento, que no hay castigo más terrible que el trabajo inútil y sin esperanza.|ancla|habla
+TOMA|The hand opens and the stone rolls slowly off the palm and out of the frame.|ancla|detalle
+TOMA|Pero es durante ese regreso, esa pausa, cuando Sísifo me interesa. Ese hombre que vuelve a bajar es consciente. Y su lucidez consuma su victoria.|ancla|habla
+TOMA|The empty hand rests open on the dark earth, unmoving, the light fading slowly across it.|ancla|detalle

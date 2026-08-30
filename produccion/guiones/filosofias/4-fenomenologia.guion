@@ -1,0 +1,20 @@
+# ── NIVEL 4 · FENOMENOLOGIA · la imagen sostiene la pieza casi sola ───────
+# Solo DOS de seis tomas llevan voz. Las otras cuatro son espacio y objeto sin
+# nadie. 6 x 345f = 86 s.
+#
+# El salto sobre el nivel 3: alli la voz aparecia en la mitad de las tomas y
+# llevaba el hilo. Aqui la voz abre y cierra, y en medio hay 57 segundos sin
+# una palabra. La narrativa tiene que sostenerse con la IMAGEN y el orden de
+# los planos, que es exactamente donde se vera si el modelo da para contar algo
+# o solo para ilustrar a alguien hablando.
+@TIPO paisaje
+@ESCENA An empty room at dawn. A wooden table by a tall window, a white ceramic cup on it, pale grey light falling across the floor, bare walls.
+@AMBIENTE A quiet room tone with the faint hum of a distant street beyond the window.
+@MUSICA A single sustained low cello note held quietly, restrained and continuous, unchanging in character.
+
+TOMA|A las cosas mismas. Antes de la teoría, antes del nombre: lo que aparece, tal como aparece.|inicio|habla
+TOMA|Pale dawn light moves almost imperceptibly across the bare floor. Nothing enters the frame.|ancla|paisaje
+TOMA|A white ceramic cup on the wooden table, the rim catching the grey light, a thin curl of steam rising and dissolving.|ancla|detalle
+TOMA|The light on the wall shifts slowly from grey to a faint warm tone. The room is empty.|ancla|paisaje
+TOMA|The cup seen from very close, the glaze crazed with fine lines, a single drop sliding down the outside.|ancla|detalle
+TOMA|Eso que viste no era una taza. Era tu mirada sobre una taza. La diferencia es todo lo que hay.|ancla|habla
