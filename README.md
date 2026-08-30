@@ -46,13 +46,19 @@ Cabecera (una vez), que alimenta las tres secciones del prompt del modelo:
 Y una línea por plano:
 
 ```
-TOMA|<contenido>|<modo>|<tipo opcional>
+TOMA|<contenido>|<modo>|<tipo opcional>|<escena opcional de ESTA toma>
 HABLA|<diálogo en español>|<modo>|<tipo opcional>    # equivale a TOMA con @TIPO habla
 BROLL|<ruta relativa a proyecto-minuto/ o absoluta>
 ```
 
-`TOMA|` es la forma general; `HABLA|` se mantiene porque los guiones antiguos la usan. El
-cuarto campo permite **mezclar tipos dentro de un mismo guion**: una toma hablada, luego un
+`TOMA|` es la forma general; `HABLA|` se mantiene porque los guiones antiguos la usan.
+
+El **quinto campo** sustituye a `@ESCENA` sólo en esa toma. Hace falta para dos cosas que de
+otro modo son imposibles: meter un **segundo interlocutor** (toda toma anclada hereda la cara de
+la toma 1, así que sin esto el guion no puede ni pedir otra persona), y evitar que un **plano de
+detalle** arrastre el rostro del ancla. Combínalo con el modo `inicio`.
+
+El cuarto campo permite **mezclar tipos dentro de un mismo guion**: una toma hablada, luego un
 detalle de las manos, luego un plano general, sin salir del mismo `.guion`.
 
 ### Tipos de plano

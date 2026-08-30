@@ -1,21 +1,29 @@
-# ── NIVEL 3 · EL ABSURDO · la voz se interrumpe con planos de apoyo ───────
-# Alterna habla y detalle: 6 tomas, tres habladas y tres mudas de objeto.
-# Salto sobre el nivel 2: ya no basta con mantener UNA continuidad, hay que
-# saltar entre DOS mundos visuales —el rostro sobre negro y la piedra en la
-# mano— y que el conjunto siga leyendose como una sola pieza.
+# ── NIVEL 3 · EL ABSURDO · alterna rostro hablado y planos de la piedra ───
+# 6 tomas: tres habladas y tres de apoyo.
 #
-# El campo 4 de cada TOMA fija su tipo, sobreescribiendo el @TIPO general.
-# OJO: las tomas de detalle NO llevan voz. El modelo solo genera habla
-# sincronizada con una cara, asi que el discurso se INTERRUMPE en cada plano
-# de apoyo. Eso es una limitacion real, no una eleccion narrativa.
-@TIPO habla
-@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the left wraps gently around his face, with soft gradual shadow on the right and no hard edges. He is seated against a plain matte black studio backdrop that fills the entire frame behind him. Static locked-off camera, fine film grain.
-@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
-@MUSICA A single sustained low cello note held quietly and continuously beneath the dialogue, unchanging throughout.
+# CORREGIDO tras MIRAR la primera version, que saco ESTABLE, 0 manchas y la mejor
+# variedad de las cinco piezas... y aun asi tenia un defecto que ninguna metrica
+# vio: a 45 s y 55 s los planos de apoyo salian HIBRIDOS, con la mano y la piedra
+# pero tambien la CARA del hombre, cuando debian ser primerisimos planos sin
+# rostro. Las tomas 2 y 6 salieron limpias; la 4 no.
+#
+# Causa: esas tomas estaban ANCLADAS a un fotograma de la toma 1, que es un primer
+# plano de cara, y el ancla arrastraba el rostro al plano de detalle. El mismo
+# mecanismo que da continuidad es el que contamina. Y explica que fuera
+# intermitente: depende de cuanta cara traiga el fotograma usado como ancla.
+#
+# Arreglo: las tomas de apoyo llevan ESCENA PROPIA (campo 5) y arrancan en modo
+# 'inicio', sin ancla. Pierden continuidad de identidad —que en un plano de manos
+# no importa— y ganan pureza de encuadre.
 
-TOMA|Los dioses condenaron a Sísifo a subir una roca hasta la cima de una montaña, desde donde volvía a caer por su propio peso.|inicio|habla
-TOMA|A weathered hand closes slowly around a rough grey stone resting on dark earth, the fingers tightening.|ancla|detalle
-TOMA|Pensaron, con algún fundamento, que no hay castigo más terrible que el trabajo inútil y sin esperanza.|ancla|habla
-TOMA|The hand opens and the stone rolls slowly off the palm and out of the frame.|ancla|detalle
-TOMA|Pero es durante ese regreso, esa pausa, cuando Sísifo me interesa. Ese hombre que vuelve a bajar es consciente. Y su lucidez consuma su victoria.|ancla|habla
-TOMA|The empty hand rests open on the dark earth, unmoving, the light fading slowly across it.|ancla|detalle
+@TIPO habla
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the left wraps gently around his face, with soft gradual shadow on the right and no hard edges. He is seated against a plain matte black studio backdrop. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
+@MUSICA A single sustained low cello note held quietly and continuously, unchanging throughout.
+
+TOMA|Los dioses condenaron a Sísifo a subir una roca hasta la cima de una montaña, desde donde volvía a caer por su propio peso.|inicio|habla|
+TOMA|A weathered hand closes slowly around the rough grey stone, the fingers tightening.|inicio|detalle|Extreme close-up of a rough grey stone on dark bare earth, filling the frame. A single weathered hand enters the frame. Raking low light from the left picks out the grain of the stone and the texture of the soil. No face and no person visible: only the hand, the stone and the earth. Shallow depth of field, static locked-off camera, fine film grain.
+TOMA|Pensaron, con algún fundamento, que no hay castigo más terrible que el trabajo inútil y sin esperanza.|ancla|habla|
+TOMA|The hand opens and the stone rolls slowly off the palm and out of the frame.|inicio|detalle|Extreme close-up of a rough grey stone on dark bare earth, filling the frame. A single weathered hand enters the frame. Raking low light from the left picks out the grain of the stone and the texture of the soil. No face and no person visible: only the hand, the stone and the earth. Shallow depth of field, static locked-off camera, fine film grain.
+TOMA|Pero es durante ese regreso, esa pausa, cuando Sísifo me interesa. Ese hombre que vuelve a bajar es consciente. Y su lucidez consuma su victoria.|ancla|habla|
+TOMA|The empty hand rests open on the dark earth, unmoving, the light fading slowly across it.|inicio|detalle|Extreme close-up of a rough grey stone on dark bare earth, filling the frame. A single weathered hand enters the frame. Raking low light from the left picks out the grain of the stone and the texture of the soil. No face and no person visible: only the hand, the stone and the earth. Shallow depth of field, static locked-off camera, fine film grain.

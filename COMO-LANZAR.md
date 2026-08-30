@@ -189,6 +189,15 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
 - **No compruebes un guion produciéndolo.** Usa `VALIDAR=1`, que además imprime el prompt
   exacto que recibe el modelo. Comprobar la sintaxis arrancando una generación real deja dos
   procesos peleándose por el cerrojo.
+- **No ancles un plano de detalle a un fotograma de cara: le mete la cara dentro.** En
+  `3-absurdo` las tomas de apoyo salieron **híbridas** —la mano con la piedra *y* el rostro del
+  hombre— porque estaban ancladas a la toma 1, que es un primer plano de cara. El mismo
+  mecanismo que da continuidad es el que contamina, y sale intermitente porque depende de cuánta
+  cara traiga el fotograma usado como ancla.
+  Ninguna métrica lo vio: la pieza sacó **ESTABLE, 0 manchas y la mejor variedad de las cinco**.
+  Se ve mirando y sólo mirando.
+  Arreglo: darle a la toma de apoyo su **escena propia** (campo 5) y modo `inicio`. Pierde
+  continuidad de identidad —irrelevante en un plano de manos— y gana pureza de encuadre.
 - **El anclaje es incompatible con un movimiento de cámara continuo.** Cada toma anclada
   arranca desde un fotograma de la toma 1, así que un dolly vuelve siempre a la distancia
   inicial: en `formato-camara` el tamaño de la lámpara hace pequeño-mayor-**pequeño**-mayor a
