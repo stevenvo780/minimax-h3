@@ -1,0 +1,15 @@
+{
+  "nombre": "documental",
+  "descripcion": "Voz que abre y cierra; en medio, el espacio habla solo.",
+  "escena": "An empty study at dusk. A warm brass desk lamp glows on a heavy wooden table with an open book, tall shelves of worn hardbacks rising into darkness, a tall window showing deep blue evening sky.",
+  "ambiente": "A quiet room tone with the faint hum of a distant street beyond the window, and the soft creak of old wood.",
+  "musica": "A sparse low sustained cello note held quietly, restrained and continuous, unchanging in character.",
+  "ritmo": ["habla", "paisaje", "detalle", "paisaje", "detalle", "habla"],
+  "apoyos": [
+    "Dust motes drift slowly through the lamp beam. Nothing else moves.",
+    "Extreme close-up of the open book, the page edges catching the warm light.",
+    "The light on the shelves shifts almost imperceptibly. The room is empty.",
+    "Extreme close-up of the brass lamp base, the metal scratched and warm."
+  ],
+  "notas": "La categoria mas exigente: la imagen sostiene la pieza casi sola. Sirve para medir si el modelo da para CONTAR o solo para ilustrar a alguien hablando."
+}

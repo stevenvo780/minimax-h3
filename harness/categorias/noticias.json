@@ -1,0 +1,14 @@
+{
+  "nombre": "noticias",
+  "descripcion": "Presentador de informativo con planos de apoyo. Alterna rostro y detalle.",
+  "escena": "A woman of about forty with dark hair pulled back, wearing a navy blue blazer over a white shirt, seated at a plain desk. Medium close-up from the chest up, centred in frame. Even soft studio lighting with no hard shadows. Behind her a deep neutral grey wall, softly out of focus. Static locked-off camera, clean and unstylised.",
+  "ambiente": "A very quiet studio room tone with no identifiable sounds, and the clear measured female dialogue spoken by the presenter.",
+  "musica": "No music.",
+  "ritmo": ["habla", "habla", "detalle"],
+  "apoyos": [
+    "Extreme close-up of a printed newspaper page on a desk, the columns of text sharp under even light, a hand turning it slowly.",
+    "Extreme close-up of a hand writing quickly in a notebook with a black pen, the paper filling the frame.",
+    "Extreme close-up of a desk clock, the second hand sweeping steadily across the dial."
+  ],
+  "notas": "El ritmo alterna dos tomas habladas y una de apoyo. OJO: el modelo solo genera voz sincronizada con una cara, asi que el discurso SE INTERRUMPE en cada plano de apoyo. No hay voz en off."
+}
