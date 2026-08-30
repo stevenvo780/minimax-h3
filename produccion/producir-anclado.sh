@@ -199,6 +199,19 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
       [ $((w % 60)) = 0 ] && echo "  toma $i: esperando RAM ${w}s · $(ram_libre_mb)/$RAM_NECESARIA MiB"
       sleep 20; w=$((w+20))
     done
+    # Y esperar tambien la VRAM. Hay DOS fallos distintos y el reintento solo
+    # cubria uno: "Killed" es el OOM killer por RAM, y "Aborted (core dumped)"
+    # con cudaMalloc en el log es falta de VRAM. Reintentar tras un fallo de VRAM
+    # sin comprobar la VRAM es tirar 20 minutos de GPU a lo mismo: paso dos veces
+    # seguidas en 4-fenomenologia, y el log anunciaba "11774 MiB libres" hablando
+    # de RAM mientras lo que faltaba era memoria de la tarjeta.
+    VRAM_NECESARIA=$(awk -v f="$FRAMES" -v w="$W" -v h="$H" -v k="$VRAM_MIB_POR_PXFRAME_ANCLA" \
+                     -v fijo="${VRAM_FIJA_MODELO:-5558}" \
+                     'BEGIN{printf "%d", fijo + f*w*h*k + 600}')
+    if ! vram_esperar 0 "$VRAM_NECESARIA" 900; then
+      echo "  toma $i: tras 15 min la GPU sigue sin $VRAM_NECESARIA MiB." \
+           "Con el escritorio ocupando VRAM, esta toma NO CABE a $FRAMES fotogramas."
+    fi
     echo "  toma $i: $(ram_libre_mb) MiB libres, reintento"
   fi
   local t0=$SECONDS
