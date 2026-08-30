@@ -357,6 +357,7 @@ calidad/              MEDIR — todo junto, ya no repartido
   deriva.sh            deriva a lo largo de una cadena
 
 herramientas/         piezas sueltas de un solo uso
+  guardian-vram.sh     corta la generación si baja el margen de GPU del usuario
   h3.sh                un clip para probar un prompt
   encadenar.sh · generar-1080p.sh · ordenar-videos.sh
 
