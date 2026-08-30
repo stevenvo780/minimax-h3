@@ -199,6 +199,10 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   ```
   Eso es **VRAM**, no RAM. Pasó cuando el escritorio del usuario subió de 3,5 a 5,7 GB y la
   generación dejó de caber. Se perdió una tarde ajustando umbrales de RAM por no leer ese log.
+- **Soltar la caché con `posix_fadvise(DONTNEED)` NO ayuda: probado y descartado.** Entre tomas
+  la caché de ficheros del cgroup es de ~0,4 GB, así que no hay nada que soltar. El pico es el
+  conjunto de trabajo propio de `sd-cli` (19,3 GB medidos), no caché reclamable. Con ~19,5 GB
+  libres cada toma **anclada** pasa rozando: por eso las limpias salen y las ancladas fallan más.
 - **LA CAUSA RAÍZ de los OOM: los pesos no caben, y punto.** El modelo podado ocupa **10,6 GB**
   y el codificador de texto otros **17,0 GB** — **27,6 GB de pesos en un cgroup de 24**. Funciona
   sólo porque están mapeados desde disco y el kernel expulsa páginas (el codificador no hace
