@@ -160,7 +160,13 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   tope duro en σ 0,35 y se niega a pasar.
 - **No pidas el fondo por negación.** «no objects, no furniture, no walls» mete
   muebles y paredes. Descríbelo en positivo: «a plain matte black backdrop».
-- **No edites un script mientras corre.** Bash relee por offset de bytes. Si tienes que
+- **No edites un script mientras corre.** Bash relee por offset de bytes. **Ha pasado, con el
+  script en marcha:** una escritura en sitio sobre `producir-anclado.sh` durante una tanda dio
+  `pdate: command not found` y `syntax error near unexpected token 'done'` — el proceso leyó
+  basura a mitad de `$(date` y murió **justo antes de montar**, tras 6 tomas buenas. Se recuperó
+  volviendo a lanzar (las tomas existían y se saltan), pero pudo costar 2 h de GPU.
+  La regla no es "ten cuidado": es **escribe a un temporal y `mv` encima**, siempre. El `rename`
+  es atómico y el proceso vivo conserva su inode. Si tienes que
   cambiarlo con una tanda viva, escribe a un temporal y `mv` encima: el `rename` es atómico y
   el proceso vivo conserva su inode. La tanda siguiente ya coge la versión nueva.
 - **Nunca mates procesos con `pkill -f` ni `pgrep -f`.** El patrón hace match con **tu propia
