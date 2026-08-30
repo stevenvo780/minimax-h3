@@ -25,3 +25,6 @@ videos/
 *.png
 *.wav
 __pycache__/
+
+# la UI no genera artefactos, pero por si acaso
+ui/__pycache__/
