@@ -78,13 +78,14 @@ def logs_activos(n=3):
     en ninguna parte. Justo el hueco que hacia preguntar "¿esta trabajando?".
     """
     r=[]
+    # SOLO se leen logs de dentro del proyecto. La primera version tambien
+    # rastreaba /tmp/claude-*/, que es escribible por otros procesos: su
+    # contenido acabaria en el navegador de quien abra la UI. Si hace falta mirar
+    # un log de fuera, se apunta explicitamente con SCRATCH_LOGS.
     pats=[os.path.join(RAIZ,"produccion/logs/*.log")]
     scratch=os.environ.get("SCRATCH_LOGS")
-    if scratch: pats.append(os.path.join(scratch,"*.log"))
-    else:
-        # los logs de las colas viven en el scratchpad de la sesion
-        for d in glob.glob("/tmp/claude-*/*/*/scratchpad"):
-            pats.append(os.path.join(d,"*.log"))
+    if scratch and os.path.isdir(scratch):
+        pats.append(os.path.join(os.path.realpath(scratch),"*.log"))
     fs=[]
     for p in pats: fs.extend(glob.glob(p))
     fs=[f for f in fs if os.path.isfile(f)]
@@ -204,6 +205,12 @@ font-size:11px;max-height:190px;overflow:auto;color:var(--sec);white-space:pre-w
 </main>
 <script>
 const $=s=>document.querySelector(s);
+// Todo lo que entra en innerHTML se escapa. El contenido no es de fiar: los
+// nombres de fichero los pone quien genera, y las lineas de log salen de
+// ficheros en rutas escribibles por otros procesos. Una linea con <script> se
+// ejecutaria en el navegador de quien abra la UI.
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let guionesCargados=false;
 function pinta(d){
   $('#c-gen').innerHTML='<span class="dot '+(d.generando?'on':'off')+'"></span>'+
@@ -215,25 +222,26 @@ function pinta(d){
   });
   $('#c-ram').innerHTML='RAM <b>'+d.ram.libre_gb+'</b> / '+d.ram.total_gb+' GB libres';
   $('#vids').innerHTML = d.videos.length ? d.videos.map(v=>
-    '<div class="v"><video src="'+v.url+'" controls preload="metadata"></video>'+
-    '<div class="m"><b>'+v.nombre+'</b>'+v.mb+' MB · '+v.fecha+
-    ' <span class="tag '+v.etiqueta+'">'+v.etiqueta+'</span></div></div>').join('')
+    '<div class="v"><video src="'+encodeURI(v.url)+'" controls preload="metadata"></video>'+
+    '<div class="m"><b>'+esc(v.nombre)+'</b>'+esc(v.mb)+' MB · '+esc(v.fecha)+
+    ' <span class="tag '+(v.etiqueta==='entrega'?'entrega':'experimento')+'">'+
+    esc(v.etiqueta)+'</span></div></div>').join('')
     : '<div class="nota">Todavía no hay vídeos.</div>';
   if(!guionesCargados && d.guiones.length){
-    $('#guion').innerHTML=d.guiones.map(g=>'<option value="'+g.ruta+'">'+g.nombre+
-      ' ('+g.tomas+' tomas, '+g.tipo+')</option>').join('');
+    $('#guion').innerHTML=d.guiones.map(g=>'<option value="'+esc(g.ruta)+'">'+esc(g.nombre)+
+      ' ('+esc(g.tomas)+' tomas, '+esc(g.tipo)+')</option>').join('');
     guionesCargados=true;
   }
   $('#btn').disabled=d.generando;
   $('#logs').innerHTML = (d.logs||[]).length ? d.logs.map(l=>
-    '<div style="margin-bottom:11px"><b>'+l.nombre+'</b> <span style="color:'+
+    '<div style="margin-bottom:11px"><b>'+esc(l.nombre)+'</b> <span style="color:'+
     (l.fresco?'var(--busy)':'var(--sec)')+'">'+(l.fresco?'activo':'inactivo')+
-    ' · hace '+l.hace+'</span><pre>'+l.ultimas.join('\n')+'</pre></div>').join('')
+    ' · hace '+esc(l.hace)+'</span><pre>'+l.ultimas.map(esc).join('\n')+'</pre></div>').join('')
     : '<div class="nota">Sin actividad reciente del pipeline.</div>';
   $('#trab').innerHTML = d.trabajos.length ? d.trabajos.map(t=>
-    '<div style="margin-bottom:11px"><b>'+t.nombre+'</b> <span style="color:var(--sec)">'+
+    '<div style="margin-bottom:11px"><b>'+esc(t.nombre)+'</b> <span style="color:var(--sec)">'+
     (t.vivo?'en curso':'terminado')+'</span><pre>'+
-    (t.ultimas.join('\n')||'sin salida todavía')+'</pre></div>').join('')
+    (t.ultimas.map(esc).join('\n')||'sin salida todavía')+'</pre></div>').join('')
     : '<div class="nota">Ninguna tanda lanzada desde aquí. Las que se lanzaron por consola no aparecen, pero su efecto sí se ve arriba.</div>';
 }
 async function tic(){
@@ -247,7 +255,7 @@ $('#btn').onclick=async()=>{
   const r=await (await fetch('/api/lanzar',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({guion:$('#guion').value,nombre:$('#nombre').value,
       frames:+$('#frames').value,w:+w,h:+h,pasos:20})})).json();
-  $('#nota').textContent = r.ok ? 'lanzada: '+r.nombre+' · log en '+r.log : 'no se pudo: '+r.error;
+  $('#nota').textContent = r.ok ? 'lanzada: '+r.nombre+' · log en '+r.log : 'no se pudo: '+r.error;  // textContent: no interpreta HTML
   tic();
 };
 tic(); setInterval(tic,4000);
@@ -299,6 +307,9 @@ class Servidor(socketserver.ThreadingTCPServer):
     allow_reuse_address=True; daemon_threads=True
 
 if __name__=="__main__":
-    with Servidor(("0.0.0.0",PUERTO),H) as s:
+    # 127.0.0.1 y no 0.0.0.0: es una UI local y no tiene autenticacion; escuchando
+    # en todas las interfaces quedaria expuesta a la red, y su endpoint /api/lanzar
+    # arranca procesos.
+    with Servidor(("127.0.0.1",PUERTO),H) as s:
         print(f"UI en http://localhost:{PUERTO}  (raiz: {RAIZ})")
         s.serve_forever()
