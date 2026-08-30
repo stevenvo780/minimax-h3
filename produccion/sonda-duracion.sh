@@ -77,7 +77,13 @@ for f in $FRAMES_LISTA; do
     --backend "diffusion=CUDA0,te=cpu,vae=CUDA0" --params-backend "${PARAMS_BK:-diffusion=cpu,te=disk}" \
     --max-vram "$maxv" --stream-layers \
     -o "$T/p.mp4" </dev/null > "$T/g.log" 2>&1
-  rc=$?; dur=$((SECONDS-t0))
+  rc=$?
+  # En su propia linea a proposito. Aqui el orden era correcto —rc=$? va antes
+  # de la aritmetica—, pero mezclar las dos cosas en una linea es exactamente la
+  # ambiguedad que costo 14 scripts reportando el codigo de salida de `date`.
+  # El check codigo-salida.sh marca la mezcla aunque el orden este bien, y hace
+  # bien: es mas barato escribir dos lineas que discutir cual es cual.
+  dur=$((SECONDS-t0))
   kill $VIG 2>/dev/null; wait $VIG 2>/dev/null
   min=$(sort -n "$T/libre.txt" 2>/dev/null | head -1)
   pico=$([ -n "${min:-}" ] && echo $(( TOTAL - min - BASE )) || echo "")
