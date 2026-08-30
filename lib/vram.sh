@@ -124,12 +124,21 @@ VRAM_MIB_POR_PXFRAME_ANCLA=${VRAM_MIB_POR_PXFRAME_ANCLA:-0.000072}
 # contradicen (cuda0=1 dio 16.9 GB y cuda0=4 dio 12.0 GB, pero no eran corridas
 # comparables). Como pedir menos NO cuesta velocidad, el tope es un seguro
 # gratis: si era eso, lo arregla; si no, no se pierde nada.
-# Lo que el modelo mete en VRAM ANTES de cualquier presupuesto. No es opcional
-# ni configurable: lo dice el propio sd-cli al arrancar, en su log,
-#   total params memory size = 35398.76MB (VRAM 5558.09MB, RAM 29840.67MB)
-# El presupuesto repartia el hueco libre ignorando estos 5.5 GB, o sea repartia
-# memoria que no existe. Por eso pedia cuda0=4 con sitio para cero y sd-cli
-# abortaba con "cudaMalloc failed: out of memory" al reservar 665 MiB.
+# REVERTIDO 2026-08-30. Se descontaba este valor del presupuesto, leyendo del log
+# de sd-cli "total params memory size = 35398.76MB (VRAM 5558.09MB, RAM ...)" y
+# suponiendo que eran 5.5 GB ADICIONALES al buffer y a la cache. Los datos dicen
+# que no:
+#   - con el descuento el presupuesto cae a cuda0=1, y con tan poca cache los
+#     pesos fluyen por RAM: dos OOM de RAM seguidos en la misma toma a 209
+#     fotogramas, que es MENOS trabajo del que ayer salio bien
+#   - sin el descuento daba cuda0=2-3 y salieron 16 tomas seguidas a 345
+#     fotogramas sin un solo reintento
+#   - y si esos 5558 MB fueran de verdad adicionales, lo de ayer no habria
+#     cabido nunca: 5558 + 7605 de buffer + 2048 de cache pasan de los 16.3 GB
+#     de la tarjeta
+# Lo mas plausible es que ese numero YA incluya la cache de --max-vram y yo lo
+# estuviera contando dos veces. Se deja la constante definida y documentada, pero
+# NO se resta.
 VRAM_FIJA_MODELO=${VRAM_FIJA_MODELO:-5558}
 
 VRAM_TOPE_GB=${VRAM_TOPE_GB:-4}
@@ -146,7 +155,7 @@ vram_arg_trabajo() {
   techo=$(vram_techo "$idx") || { echo "cuda${idx}=2"; return 0; }
   buffer=$(awk -v f="$frames" -v w="$w" -v h="$h" -v k="$k" \
            'BEGIN{printf "%d", f*w*h*k}')
-  modelo=$(( techo - buffer - VRAM_FIJA_MODELO ))
+  modelo=$(( techo - buffer ))
   g=$(( modelo / 1024 ))
   # Nunca por debajo de 1 GB ni por encima del techo normal: con 1 GB el modelo
   # va casi todo en streaming, que es lento pero cabe siempre.

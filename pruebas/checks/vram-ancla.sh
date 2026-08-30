@@ -40,11 +40,13 @@ lee() { echo "${1#*=}"; }
 res=$(PATH="$T/bin:$PATH" bash -c ". '$RAIZ/lib/vram.sh'
   echo \"limpia=\$(vram_arg_trabajo 0 345 736 416 0)\"
   echo \"anclada=\$(vram_arg_trabajo 0 345 736 416 1)\"
-  echo \"colchon=\$VRAM_COLCHON\"" 2>&1)
+  echo \"colchon=\$VRAM_COLCHON\"
+  echo \"tope=\$VRAM_TOPE_GB\"" 2>&1)
 
 lim=$(printf '%s' "$res" | sed -n 's/^limpia=cuda0=//p')
 anc=$(printf '%s' "$res" | sed -n 's/^anclada=cuda0=//p')
 col=$(printf '%s' "$res" | sed -n 's/^colchon=//p')
+tope=$(printf '%s' "$res" | sed -n 's/^tope=//p')
 
 if ! [[ "$lim" =~ ^[0-9]+$ ]] || ! [[ "$anc" =~ ^[0-9]+$ ]]; then
   echo "FALLA $nombre: no pude leer el presupuesto. Salida:"; printf '%s\n' "$res" | sed 's/^/    /'
@@ -58,25 +60,22 @@ fi
 if [ "$anc" -gt "$lim" ]; then
   echo "FALLA $nombre: anclada pide cuda0=$anc y limpia cuda0=$lim: anclar no puede pedir MAS."
   fallos=1
-elif [ "$anc" -eq "$lim" ] && [ "$anc" -ne 1 ]; then
-  echo "FALLA $nombre: anclada y limpia piden lo mismo (cuda0=$anc) sin estar en el suelo."
+elif [ "$anc" -eq "$lim" ] && [ "$anc" -ne 1 ] && [ "$anc" -ne "${tope:-4}" ]; then
+  # Dos igualdades son legitimas y no son fallo: que ambos toquen el SUELO de
+  # 1 GB (por debajo no se puede pedir) o que ambos toquen el TECHO de
+  # VRAM_TOPE_GB (por encima no se quiere pedir). Fuera de esos dos casos,
+  # anclar tiene que pedir menos.
+  echo "FALLA $nombre: anclada y limpia piden lo mismo (cuda0=$anc) sin estar en el suelo ni en el techo."
   echo "    Anclar engorda el buffer ~1.7 GB: tiene que pedir menos."
   fallos=1
 fi
 
-# 1b. El presupuesto tiene que descontar lo que el modelo fija en VRAM.
-# sd-cli reserva ~5558 MB pase lo que pase (lo dice su log: "total params memory
-# size = 35398.76MB (VRAM 5558.09MB, ...)"). Ignorarlo hacia repartir memoria que
-# no existe: pedia cuda0=4 con sitio para cero y sd-cli abortaba con
-# "cudaMalloc failed: out of memory". Con 20000 libres, techo 0.80 -> 16000, y
-# un buffer de 345f a 736x416 de ~5.9 GB, el modelo NO puede superar
-# (16000 - 5915 - 5558)/1024 = 4 GB. Sin el descuento saldrian 9.
-techo_esperado=$(( (16000 - 5915 - 5558) / 1024 ))
-if [ "$lim" -gt "$techo_esperado" ]; then
-  echo "FALLA $nombre: limpia pide cuda0=$lim, mas de $techo_esperado."
-  echo "    Parece que no se descuentan los ~5558 MB que el modelo fija en VRAM."
-  fallos=1
-fi
+# NOTA 2026-08-30: aqui hubo una asercion que exigia descontar los ~5558 MB que
+# sd-cli declara en VRAM. Se quito porque ese descuento se REVIRTIO: bajaba el
+# presupuesto a cuda0=1, y con tan poca cache los pesos fluyen por RAM y provocan
+# OOM de RAM. Ver el porque completo en lib/vram.sh, junto a VRAM_FIJA_MODELO.
+# Dejar la asercion habria sido peor que no tenerla: exigia lo contrario de lo
+# que se decidio.
 
 # 2. El colchon no puede quedarse por debajo del margen que exige el guardian.
 #    1536 MiB es el suelo: el guardian corto al ver 1155 libres.
