@@ -234,3 +234,19 @@ hay_generacion_en_curso() {
   if flock -n 8; then flock -u 8; exec 8>&-; return 1; fi
   exec 8>&-; return 0
 }
+
+# ── El resto de la libreria ────────────────────────────────────────────────
+# comun.sh es el contrato central del proyecto, pero no lo era del todo: cada
+# script tenia que acordarse de sourear ADEMAS compat.sh, prompt.sh y vram.sh.
+# Olvidarse no da un error al cargar, da un "command not found" a mitad de
+# trabajo. Paso dos veces el mismo dia: seis scripts sin compat.sh morian al
+# tocar la GPU, y la sonda de resolucion espero HORA Y MEDIA a que se liberase
+# la tarjeta para caerse en la primera linea con "construir_prompt: command not
+# found". Sourear comun.sh basta.
+if [ -z "${H3_LIB_LISTA:-}" ]; then
+  H3_LIB_LISTA=1
+  _libdir=$(dirname "${BASH_SOURCE[0]}")
+  [ -f "$_libdir/prompt.sh" ] && . "$_libdir/prompt.sh"
+  [ -f "$_libdir/vram.sh" ]   && . "$_libdir/vram.sh"
+  unset _libdir
+fi
