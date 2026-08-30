@@ -1,0 +1,46 @@
+# ── NIVEL 6 · LA IDENTIDAD · una voz sostenida SOBRE imagenes que no son ella ─
+#
+# El salto sobre el nivel 5 no es la duracion (10 tomas, ~80 s) ni el numero de
+# caras. Es la FORMA. Hasta aqui la imagen siempre era el sujeto: alguien
+# hablando, y como mucho un plano de apoyo que ilustraba lo dicho un momento
+# antes. Aqui la pieza alterna un rostro con planos que NO lo contienen —madera,
+# un puerto, un clavo, un casco— y la tesis tiene que sobrevivir al salto. Si el
+# espectador pierde el hilo en el segundo plano de madera, la forma no aguanta.
+#
+# Es documental, no entrevista. Y es la prueba mas dura de la narrativa: seis
+# tomas habladas separadas por cuatro que no lo estan, sosteniendo UN argumento
+# que solo cierra en la ultima frase.
+#
+# Dos cosas aprendidas a base de estropearlas, y por las que este guion esta
+# escrito asi:
+#
+#   - Los planos de apoyo van en modo 'inicio' y con ESCENA PROPIA (campo 5).
+#     Anclados a un fotograma de la toma 1 —que es una cara— salen HIBRIDOS,
+#     con la madera y tambien el rostro. Paso en 3-absurdo y ninguna metrica lo
+#     vio: saco ESTABLE, 0 manchas y la mejor variedad de las cinco piezas.
+#
+#   - Los planos de apoyo llevan AMBIENTE PROPIO (campo 6). @AMBIENTE es global
+#     y dice "y el dialogo claro del hombre": en un primerisimo plano de un
+#     clavo no hay hombre ninguno, y se le estaba pidiendo al modelo una voz
+#     para un plano que debe estar callado.
+#
+# Las tomas habladas SI van ancladas: cada una a un fotograma distinto de la
+# toma 1, que es lo que mantiene la misma cara despues de irse a otra parte.
+# Volver al mismo rostro tras un plano de madera es justo lo que la pieza pone
+# a prueba.
+
+@TIPO habla
+@ESCENA A man of about fifty-five with short grey-flecked dark hair, a full soft salt-and-pepper beard that falls in soft irregular clumps, deep-set brown eyes with pronounced creases at the corners and a narrow mouth, wearing a charcoal grey wool sweater. Tight close-up: his face fills the frame from forehead to chin. A large soft diffused warm key light from the left wraps gently around his face, with soft gradual shadow on the right and no hard edges. He is seated against a plain matte black studio backdrop. Static locked-off camera, fine film grain.
+@AMBIENTE A very quiet neutral room tone with no identifiable sounds, and the clear calm male dialogue spoken by the man.
+@MUSICA A single sustained low cello note held quietly and continuously, unchanging throughout.
+
+TOMA|Un barco vuelve a puerto cada año. Y cada año le cambian una tabla podrida por una tabla nueva.|inicio|habla|
+TOMA|A single weathered plank of pale wood lies on dark stone, its grain and salt stains filling the frame.|inicio|detalle|One weathered plank of pale sun-bleached wood resting on dark wet stone. Deep cracks, visible grain and pale salt crust across the surface. Low raking light from the left picks out every ridge and hollow. No people and no faces anywhere in frame. Shallow depth of field, static locked-off camera, fine film grain.|Very quiet harbour room tone: faint distant water and a soft low wind. No voices and no speech of any kind.
+TOMA|Al cabo de cuarenta años no queda a bordo ni una sola de las tablas que zarparon la primera vez.|ancla|habla|
+TOMA|The empty stone quay at first light, the flat water beyond it perfectly still.|inicio|paisaje|A wide static shot of an empty stone quay at first light, flat grey water beyond it and a pale overcast sky. Cold blue dawn light, no sun visible. Weathered mooring posts along the edge. Nothing moves except the faintest shift of the water. Static locked-off camera, fine film grain.|Very quiet harbour room tone: faint distant water and a soft low wind. No voices and no speech of any kind.
+TOMA|La pregunta de Plutarco es sencilla, y no tiene una respuesta fácil. ¿Sigue siendo el mismo barco?|ancla|habla|
+TOMA|A single square-headed iron nail, dark with rust, sunk deep into old grey wood.|inicio|detalle|One square-headed iron nail, dark orange with rust, driven deep into old grey weathered wood. The wood is split around the nail head and stained dark by the iron. Low raking light from the left. No people and no faces anywhere in frame. Shallow depth of field, static locked-off camera, fine film grain.|Very quiet harbour room tone: faint distant water and a soft low wind. No voices and no speech of any kind.
+TOMA|Hobbes fue más lejos. Imaginó que alguien guardaba las tablas viejas y armaba con ellas un segundo barco.|ancla|habla|
+TOMA|drifts slowly and steadily to the right along the wooden hull, the overlapping planks passing by one after another.|inicio|camara|A static wooden ship hull seen from very close, filling the entire frame: overlapping planks of dark tarred timber, iron nail heads, pale salt streaks. Flat overcast daylight from the left. No people and no faces anywhere in frame. Fine film grain.|Very quiet harbour room tone: faint distant water and a soft low wind. No voices and no speech of any kind.
+TOMA|Ahora hay dos barcos. Uno tiene la forma y la historia. El otro tiene la materia. Ninguno tiene las dos cosas.|ancla|habla|
+TOMA|Tú cambias de células cada siete años. Nadie te pregunta si sigues siendo tú. Lo das por hecho.|ancla|habla|

@@ -28,6 +28,7 @@ GPU=${2:-0}
 
 command -v nvidia-smi >/dev/null || { echo "GUARDIAN: sin nvidia-smi, no puedo vigilar" >&2; exit 1; }
 echo "GUARDIAN: vigilando la GPU $GPU · corto si bajan de $UMBRAL MiB libres"
+AJENO=0   # 1 = ya avise de que la GPU la ocupa algo ajeno; no repetir
 
 while true; do
   libre=$(nvidia-smi -i "$GPU" --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
@@ -50,10 +51,26 @@ while true; do
     if [ -n "$pid" ]; then
       echo "GUARDIAN: solo $libre MiB libres — corto sd-cli (pid $pid) para dejarte margen"
       kill -TERM "$pid" 2>/dev/null
+      AJENO=0
       sleep 30   # dejar que libere antes de volver a mirar
     else
-      echo "GUARDIAN: solo $libre MiB libres, pero quien ocupa la GPU NO es sd-cli. No toco nada."
-      sleep 60   # no repetir el aviso cada 10 s
+      # Se avisa UNA vez por episodio, no en cada vuelta. Cuando la GPU la
+      # ocupa algo que no es nuestro —el escritorio del usuario, o incluso
+      # algo de OTRO contenedor, que nvidia-smi ve en memory.used pero no
+      # sabe atribuir a un PID— la situacion dura horas. Repetir el mismo
+      # aviso cada minuto ahoga los avisos que si piden una decision.
+      if [ "$AJENO" = 0 ]; then
+        echo "GUARDIAN: solo $libre MiB libres, pero quien ocupa la GPU NO es sd-cli. No toco nada."
+        echo "GUARDIAN: me callo hasta que la cosa cambie."
+        AJENO=1
+      fi
+      sleep 60
+    fi
+  else
+    # Vuelta a la normalidad: se dice una vez, para saber cuando se libero.
+    if [ "$AJENO" = 1 ]; then
+      echo "GUARDIAN: la GPU $GPU vuelve a tener sitio ($libre MiB libres)."
+      AJENO=0
     fi
   fi
   sleep 10

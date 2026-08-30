@@ -114,7 +114,8 @@ TIPO_DEF=${TIPO_DEF:-habla}
 tipo_valido "$TIPO_DEF" || { echo "@TIPO desconocido: $TIPO_DEF (validos: $PROMPT_TIPOS)"; exit 1; }
 
 # HABLA| se mantiene por compatibilidad; TOMA| es la forma general.
-#   TOMA|<contenido>|<modo>|<tipo opcional>
+#   TOMA|<contenido>|<modo>|<tipo>|<escena propia>|<ambiente propio>
+#   Del 3 en adelante todos son opcionales; vacio = se usa el global.
 mapfile -t CONTENIDOS < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | cut -d'|' -f2)
 mapfile -t TIPOS      < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' -v d="$TIPO_DEF" '{t=$4; gsub(/ /,"",t); print (t==""?d:t)}')
 # El campo 3 es el MODO, y hasta hoy se leia... para nada: el script anclaba las
@@ -137,6 +138,14 @@ mapfile -t MODOS     < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' '{m=$3; 
 #
 # No era un limite del modelo. Era que el guion no podia decir otra cosa.
 mapfile -t ESCENAS   < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' '{e=$5; print e}')
+# Campo 6 OPCIONAL: el ambiente sonoro de ESA toma, que sustituye a @AMBIENTE.
+#
+# Mismo problema que tenia la escena, en el otro canal. @AMBIENTE es global y en
+# una pieza con planos de apoyo dice cosas como "y el dialogo claro del hombre"
+# — en un primerisimo plano de una piedra, donde no hay hombre ninguno. Se le
+# estaba pidiendo al modelo una voz en un plano que debe estar callado.
+# Con el campo 6 un plano mudo puede declararse mudo.
+mapfile -t AMBIENTES < <(grep -E '^(HABLA|TOMA)\|' "$GUION" | awk -F'|' '{a=$6; print a}')
 N=${#CONTENIDOS[@]}
 [ "$N" -gt 0 ] || { echo "el guion no tiene lineas HABLA| ni TOMA|"; exit 1; }
 for t in "${TIPOS[@]}"; do
@@ -161,7 +170,9 @@ if [ "${VALIDAR:-0}" = 1 ]; then
     # unico que sirve para revisar un guion sin gastar GPU.
     _e=${ESCENAS[$i]:-}; _e=${_e:-$ESCENA}
     [ -n "${ESCENAS[$i]:-}" ] && echo "  (escena propia de esta toma)"
-    construir_prompt "${TIPOS[$i]}" "$_e" "${CONTENIDOS[$i]}" "$AMBIENTE" "$MUSICA" \
+    _a=${AMBIENTES[$i]:-}; _a=${_a:-$AMBIENTE}
+    [ -n "${AMBIENTES[$i]:-}" ] && echo "  (ambiente propio de esta toma)"
+    construir_prompt "${TIPOS[$i]}" "$_e" "${CONTENIDOS[$i]}" "$_a" "$MUSICA" \
       || { echo "  FALLO construyendo el prompt de la toma $n"; exit 1; }
     echo
   done
@@ -181,7 +192,10 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   local esc_toma=${ESCENAS[$((i-1))]:-}
   local esc=${esc_toma:-$ESCENA}
   [ -n "$esc_toma" ] && echo "  toma $i: escena propia (sustituye a @ESCENA)"
-  local prompt; prompt=$(construir_prompt "$tipo" "$esc" "$cont" "$AMBIENTE" "$MUSICA") || return 1
+  local amb_toma=${AMBIENTES[$((i-1))]:-}
+  local amb=${amb_toma:-$AMBIENTE}
+  [ -n "$amb_toma" ] && echo "  toma $i: ambiente propio (sustituye a @AMBIENTE)"
+  local prompt; prompt=$(construir_prompt "$tipo" "$esc" "$cont" "$amb" "$MUSICA") || return 1
   local extra=(); [ -n "$ancla" ] && extra+=(--init-img "$ancla")
   # Consciente del tamaño del trabajo: el buffer de computo crece con
   # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.
