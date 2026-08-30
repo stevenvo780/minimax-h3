@@ -71,6 +71,22 @@ FRAMES=${3:-685}; W=${4:-736}; H=${5:-416}; PASOS=${6:-20}
 #
 # Contra un fallo probabilistico la respuesta correcta es reintentar, no seguir
 # afinando parametros. Cada reintento cuesta tiempo; perder la toma cuesta mas.
+# Donde viven los parametros de cada modulo.
+#
+# NO PROBADO todavia contra el fallo real, y lo digo antes de que parezca un
+# arreglo: 'te=disk' deja los 17 GB del codificador de texto en el FICHERO en vez
+# de en RAM. Solo hace falta al principio, para condicionar el prompt; despues es
+# peso muerto que compite con la difusion en un cgroup de 24 GB donde los pesos
+# suman 27.6.
+#
+# Lo comprobado hasta ahora: una generacion corta con te=disk termina bien
+# (rc=0, salida correcta). Lo que NO se ha comprobado: que baje la tasa de OOM en
+# tomas ancladas de 345 fotogramas, que es donde falla. Se mide con las piezas
+# que vienen.
+#
+# Para volver atras: PARAMS_BK="diffusion=cpu"
+PARAMS_BK=${PARAMS_BK:-diffusion=cpu,te=disk}
+
 REINTENTOS=${REINTENTOS:-6}
 
 RAM_NECESARIA=${RAM_NECESARIA:-8000}
@@ -185,7 +201,7 @@ generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
     --cfg-scale "${CFG:-1.0}" -W "$W" -H "$H" --fps 24 \
     --video-frames "$FRAMES" --steps "$PASOS" \
     --diffusion-fa --rng cpu \
-    --backend "diffusion=CUDA0,te=cpu,vae=CUDA0" --params-backend "diffusion=cpu" \
+    --backend "diffusion=CUDA0,te=cpu,vae=CUDA0" --params-backend "$PARAMS_BK" \
     --max-vram "$maxv" --stream-layers \
     -o "$out.mp4" "${extra[@]}" > "$PROD/logs/$NOMBRE-t$i.log" 2>&1
   local real; real=$(sd_salida "$out.mp4")

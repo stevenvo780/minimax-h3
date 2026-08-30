@@ -203,6 +203,10 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   la caché de ficheros del cgroup es de ~0,4 GB, así que no hay nada que soltar. El pico es el
   conjunto de trabajo propio de `sd-cli` (19,3 GB medidos), no caché reclamable. Con ~19,5 GB
   libres cada toma **anclada** pasa rozando: por eso las limpias salen y las ancladas fallan más.
+- **La suite de humo es frágil con una generación en curso.** Un check rojo aislado mientras
+  `sd-cli` tiene la memoria al límite no significa lo mismo que uno con la máquina en reposo:
+  pasó el 2026-08-30, un fallo que desapareció al repetirlo sin cambiar nada. Antes de perseguir
+  un rojo, repite la suite con la GPU libre.
 - **LA CAUSA RAÍZ de los OOM: los pesos no caben, y punto.** El modelo podado ocupa **10,6 GB**
   y el codificador de texto otros **17,0 GB** — **27,6 GB de pesos en un cgroup de 24**. Funciona
   sólo porque están mapeados desde disco y el kernel expulsa páginas (el codificador no hace
