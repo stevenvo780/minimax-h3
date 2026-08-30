@@ -26,6 +26,12 @@ for f in $FORMATOS; do
   fi
   echo "[$(date +%H:%M:%S)] ═══ $f · ${FRAMES}f a ${W}x${H} · $PASOS pasos ═══"
   "$MD/producir-anclado.sh" "$g" "formato-$f" "$FRAMES" "$W" "$H" "$PASOS"
-  echo "[$(date +%H:%M:%S)] $f rc=$?"
+  # $? SE CAPTURA ANTES DE NADA. Escrito como
+  #     echo "[$(date +%H:%M:%S)] $f rc=$?"
+  # el $(date) se ejecuta PRIMERO y pisa $?, asi que se reportaba el codigo de
+  # salida de date —siempre 0— en vez del de la generacion. Durante toda una
+  # sesion se dieron por buenas piezas que habian perdido una toma.
+  rc=$?
+  echo "[$(date +%H:%M:%S)] $f rc=$rc"
 done
 echo "[$(date +%H:%M:%S)] FORMATOS-FIN"

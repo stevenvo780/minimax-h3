@@ -203,6 +203,14 @@ MODELO=$PWD/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
   la caché de ficheros del cgroup es de ~0,4 GB, así que no hay nada que soltar. El pico es el
   conjunto de trabajo propio de `sd-cli` (19,3 GB medidos), no caché reclamable. Con ~19,5 GB
   libres cada toma **anclada** pasa rozando: por eso las limpias salen y las ancladas fallan más.
+- **`rc=$?` después de `$(...)` reporta el código de salida equivocado.** Escrito así:
+  ```bash
+  echo "[$(date +%H:%M:%S)] rc=$?"     # MAL: $(date) se ejecuta primero y pisa $?
+  rc=$?; echo "[$(date +%H:%M:%S)] rc=$rc"   # bien
+  ```
+  Costó una sesión entera de conclusiones falsas: una pieza perdió una toma tras 6 intentos, el
+  pipeline salió con 1 correctamente, y el log dijo **`rc=0`**. Apareció en **14 scripts a la
+  vez**. `pruebas/checks/codigo-salida.sh` lo caza.
 - **La suite de humo es frágil con una generación en curso.** Un check rojo aislado mientras
   `sd-cli` tiene la memoria al límite no significa lo mismo que uno con la máquina en reposo:
   pasó el 2026-08-30, un fallo que desapareció al repetirlo sin cambiar nada. Antes de perseguir
