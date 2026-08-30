@@ -70,6 +70,40 @@ def guiones():
         r.append({"ruta":rel,"nombre":os.path.basename(f)[:-6],"tomas":n,"tipo":tipo})
     return r
 
+def logs_activos(n=3):
+    """Los logs mas recientes del pipeline, los lance quien los lance.
+
+    La primera version solo mostraba las tandas arrancadas DESDE la UI, asi que
+    una cola lanzada por consola —que es como se lanzan casi todas— no aparecia
+    en ninguna parte. Justo el hueco que hacia preguntar "¿esta trabajando?".
+    """
+    r=[]
+    pats=[os.path.join(RAIZ,"produccion/logs/*.log")]
+    scratch=os.environ.get("SCRATCH_LOGS")
+    if scratch: pats.append(os.path.join(scratch,"*.log"))
+    else:
+        # los logs de las colas viven en el scratchpad de la sesion
+        for d in glob.glob("/tmp/claude-*/*/*/scratchpad"):
+            pats.append(os.path.join(d,"*.log"))
+    fs=[]
+    for p in pats: fs.extend(glob.glob(p))
+    fs=[f for f in fs if os.path.isfile(f)]
+    fs.sort(key=os.path.getmtime, reverse=True)
+    ahora=time.time()
+    for f in fs[:n]:
+        edad=ahora-os.path.getmtime(f)
+        try:
+            with open(f, errors="ignore") as fh: txt=fh.read()[-6000:].replace("\r","\n")
+        except Exception: continue
+        lineas=[l.rstrip() for l in txt.splitlines()
+                if l.strip() and not l.lstrip().startswith("|") and "###" not in l]
+        if not lineas: continue
+        r.append({"nombre":os.path.basename(f)[:-4],
+                  "fresco": edad < 300,
+                  "hace": f"{int(edad)}s" if edad<120 else f"{int(edad/60)} min",
+                  "ultimas":lineas[-10:]})
+    return r
+
 def estado_trabajos():
     r=[]
     for nombre,t in list(_trabajos.items()):
@@ -165,7 +199,7 @@ font-size:11px;max-height:190px;overflow:auto;color:var(--sec);white-space:pre-w
       <button id="btn">Generar</button>
       <div class="nota" id="nota"></div>
     </div>
-    <div class="panel" style="margin-top:16px"><h2>Trabajos</h2><div id="trab"></div></div>
+    <div class="panel" style="margin-top:16px"><h2>Actividad del pipeline</h2><div id="logs"></div></div>\n    <div class="panel" style="margin-top:16px"><h2>Lanzado desde aquí</h2><div id="trab"></div></div>
   </div>
 </main>
 <script>
@@ -191,6 +225,11 @@ function pinta(d){
     guionesCargados=true;
   }
   $('#btn').disabled=d.generando;
+  $('#logs').innerHTML = (d.logs||[]).length ? d.logs.map(l=>
+    '<div style="margin-bottom:11px"><b>'+l.nombre+'</b> <span style="color:'+
+    (l.fresco?'var(--busy)':'var(--sec)')+'">'+(l.fresco?'activo':'inactivo')+
+    ' · hace '+l.hace+'</span><pre>'+l.ultimas.join('\n')+'</pre></div>').join('')
+    : '<div class="nota">Sin actividad reciente del pipeline.</div>';
   $('#trab').innerHTML = d.trabajos.length ? d.trabajos.map(t=>
     '<div style="margin-bottom:11px"><b>'+t.nombre+'</b> <span style="color:var(--sec)">'+
     (t.vivo?'en curso':'terminado')+'</span><pre>'+
@@ -228,7 +267,7 @@ class H(http.server.SimpleHTTPRequestHandler):
             self.send_header("Content-Length",str(len(b))); self.end_headers(); self.wfile.write(b); return
         if u.path=="/api/estado":
             return self._json({"gpus":gpus(),"ram":ram(),"generando":generando(),
-                               "videos":videos(),"guiones":guiones(),"trabajos":estado_trabajos()})
+                               "videos":videos(),"guiones":guiones(),"trabajos":estado_trabajos(),"logs":logs_activos()})
         if u.path.startswith("/video/"):
             rel=urllib.parse.unquote(u.path[len("/video/"):])
             # Nunca servir fuera del proyecto: se resuelve y se comprueba el prefijo.
