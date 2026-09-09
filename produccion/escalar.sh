@@ -31,10 +31,15 @@
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
-exigir_herramientas ffmpeg ffprobe || exit 1
+exigir_herramientas ffmpeg ffprobe flock || exit 1
 
 IN=${1:?falta el video}
 [ -f "$IN" ] || { echo "no existe: $IN"; exit 1; }
+# El escalado conserva su paralelismo interno entre GPU, pero reserva el mismo
+# recurso global que vid_gen durante extracción, workers y montaje. Los workers
+# heredan el descriptor del padre; por eso sus llamadas directas a sd-cli son
+# internas a una reserva ya adquirida, no una segunda entrada pública.
+reservar_generacion_completa || exit $?
 BASE=$(basename "$IN" .mp4)
 ALTURA=${ALTURA:-1080}
 GPU0_MINIMO=${GPU0_MINIMO:-3000}     # MiB que le dejamos libres al usuario

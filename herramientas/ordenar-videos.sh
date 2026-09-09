@@ -4,55 +4,118 @@
 #
 #  Uso:   ordenar-videos.sh                  -> enseña qué haría, SIN tocar nada
 #         ordenar-videos.sh --hazlo          -> lo hace
-#         ordenar-videos.sh --hazlo <patrón> -> conserva otra pieza distinta
+#         ordenar-videos.sh --hazlo <texto>  -> conserva la salida más reciente
+#                                                cuyo nombre contenga <texto>
 #
-#  NO BORRA NADA: mueve a ~/Vídeos/archivo-minimax/. Se deshace con un mv.
-#  Solo toca ficheros con la firma de nombre de esta pipeline
-#  (…-<W>x<H>-<seg>s-<AAAAMMDD>-<HHMMSS>.mp4 y similares), así que tus
-#  vídeos personales que estén en la misma carpeta no se mueven.
+#  DEST cambia la carpeta que se inspecciona (por defecto, videos/entregas del
+#  proyecto). ARCHIVO_DEST cambia la carpeta recuperable a la que se mueven las
+#  salidas (por defecto, DEST/archivo-minimax).
+#  NO BORRA NI SOBRESCRIBE NADA. Sólo considera archivos regulares directos
+#  con nombre ASCII y sidecar de procedencia cuyo SHA coincide con el MP4.
 # ═══════════════════════════════════════════════════════════════════════════
 set -u
-V=${DEST:-${HOME:-/home/$(id -un)}/Vídeos}
-ARCH=$V/archivo-minimax
-HAZLO=0; [ "${1:-}" = "--hazlo" ] && { HAZLO=1; shift; }
-CONSERVAR=${1:-existencialismo-4p}
+shopt -s nullglob
 
-[ -d "$V" ] || { echo "no existe la carpeta de vídeos: $V"; exit 1; }
+MD=${MD:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+V=${DEST:-$MD/videos/entregas}
+ARCH=${ARCHIVO_DEST:-$V/archivo-minimax}
+ESTADO_OBRA=$MD/lib/estado_obra.py
+SUFIJO_MANIFIESTO=.minimax-h3.json
+HAZLO=0
+[ "${1:-}" = "--hazlo" ] && { HAZLO=1; shift; }
+CONSERVAR=${1:-}
 
-# Firma de nombre de los ficheros que produce esta pipeline.
-firma() {
-  case "$1" in
-    *-[0-9]*x[0-9]*-[0-9]*s-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9].mp4) return 0 ;;
-    *-1080p-*s-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9].mp4) return 0 ;;
-    h3-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9].mp4*) return 0 ;;
-    *-1min-*.mp4) return 0 ;;
-  esac
-  return 1
+[ -d "$V" ] && [ ! -L "$V" ] || {
+  echo "no existe una carpeta de vídeos regular: $V"
+  exit 1
+}
+[ -f "$ESTADO_OBRA" ] || {
+  echo "no existe el verificador de procedencia: $ESTADO_OBRA"
+  exit 1
 }
 
-# La pieza que se conserva: la MÁS RECIENTE que case con el patrón.
-BUENA=$(ls -1t "$V"/*"$CONSERVAR"*.mp4 2>/dev/null | head -1)
-[ -n "$BUENA" ] || { echo "no encuentro ninguna pieza que case con '$CONSERVAR' en $V"; ls -1t "$V"/*.mp4 2>/dev/null | head -8 | sed 's/^/    hay: /'; exit 1; }
+# Formatos publicados por producir.sh, encadenar.sh, generar-1080p.sh,
+# proyecto-minuto/ensamblar.sh y el nombre por defecto de h3.sh. Los anclajes
+# son deliberados: un sufijo, una extensión doble desconocida o texto donde la
+# pipeline escribe números convierte el elemento en no seleccionable.
+firma() {
+  local nombre=$1
+  local prefijo='[A-Za-z0-9][A-Za-z0-9_-]*'
+  local fecha='[0-9]{4}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])'
+  local hora='([01][0-9]|2[0-3])[0-5][0-9][0-5][0-9]'
+  local sello="${fecha}-${hora}(-[0-9]{9})?"
+
+  [[ $nombre =~ ^${prefijo}-[1-9][0-9]*x[1-9][0-9]*-[0-9]+([.][0-9]+)?s-${sello}[.]mp4$ ]] ||
+  [[ $nombre =~ ^${prefijo}-1080p-[0-9]+([.][0-9]+)?s-${sello}[.]mp4$ ]] ||
+  [[ $nombre =~ ^existencialismo-1min-[1-9][0-9]*x[1-9][0-9]*-${sello}[.]mp4$ ]] ||
+  [[ $nombre =~ ^h3-${sello}[.]mp4([.]avi)?$ ]]
+}
+
+es_salida_regular() {
+  local ruta=$1
+  local manifiesto=$ruta$SUFIJO_MANIFIESTO
+  [ -f "$ruta" ] && [ ! -L "$ruta" ] \
+    && firma "${ruta##*/}" \
+    && [ -f "$manifiesto" ] && [ ! -L "$manifiesto" ] \
+    && python3 "$ESTADO_OBRA" verify-artifact "$manifiesto" "$ruta" >/dev/null 2>&1
+}
+
+# Se enumera una sola vez y sin `ls`: así directorios, enlaces y nombres
+# personales no pueden convertirse accidentalmente ni en la pieza conservada
+# ni en candidatas a mover.
+SALIDAS=()
+BUENA=""
+INTACTOS=0
+for f in "$V"/*; do
+  [ "$f" = "$ARCH" ] && continue
+  if es_salida_regular "$f"; then
+    SALIDAS+=("$f")
+    b=${f##*/}
+    if { [ -z "$CONSERVAR" ] || [[ $b == *"$CONSERVAR"* ]]; } \
+        && { [ -z "$BUENA" ] || [ "$f" -nt "$BUENA" ]; }; then
+      BUENA=$f
+    fi
+  else
+    INTACTOS=$((INTACTOS+1))
+  fi
+done
+
+if [ -z "$BUENA" ]; then
+  if [ -n "$CONSERVAR" ]; then
+    echo "no encuentro ninguna salida válida que contenga '$CONSERVAR' en $V"
+  else
+    echo "no encuentro ninguna salida válida de la pipeline en $V"
+  fi
+  if [ ${#SALIDAS[@]} -gt 0 ]; then
+    echo "  salidas válidas disponibles:"
+    n=0
+    for f in "${SALIDAS[@]}"; do
+      echo "    ${f##*/}"
+      n=$((n+1)); [ $n -eq 8 ] && break
+    done
+  fi
+  exit 1
+fi
+
+MOVER=()
+for f in "${SALIDAS[@]}"; do
+  [ "$f" = "$BUENA" ] || MOVER+=("$f")
+done
 
 echo "═══ CARPETA: $V ═══"
-echo "  se CONSERVA a la vista: $(basename "$BUENA")"
+echo "  se CONSERVA a la vista: ${BUENA##*/}"
 echo
-
-MOVER=(); INTACTOS=0
-for f in "$V"/*; do
-  [ -f "$f" ] || { [ -d "$f" ] && [ "$f" != "$ARCH" ] && MOVER+=("$f"); continue; }
-  [ "$f" = "$BUENA" ] && continue
-  b=$(basename "$f")
-  if firma "$b"; then MOVER+=("$f"); else INTACTOS=$((INTACTOS+1)); fi
-done
 
 if [ ${#MOVER[@]} -eq 0 ]; then
   echo "  nada que archivar: la carpeta ya está limpia."
 else
-  echo "  se ARCHIVAN ${#MOVER[@]} elementos en $ARCH/:"
-  for f in "${MOVER[@]}"; do printf "    %-58s %s\n" "$(basename "$f")" "$(du -sh "$f" 2>/dev/null | cut -f1)"; done
+  echo "  se ARCHIVAN ${#MOVER[@]} archivos en $ARCH/:"
+  for f in "${MOVER[@]}"; do
+    tam=$(du -sh -- "$f" 2>/dev/null | cut -f1)
+    printf "    %-58s %s\n" "${f##*/}" "${tam:-?}"
+  done
 fi
-[ $INTACTOS -gt 0 ] && echo "  se DEJAN QUIETOS $INTACTOS fichero(s) que no son de esta pipeline."
+[ $INTACTOS -gt 0 ] && echo "  se DEJAN QUIETOS $INTACTOS elemento(s) sin una firma válida."
 
 if [ $HAZLO -eq 0 ]; then
   echo
@@ -60,11 +123,67 @@ if [ $HAZLO -eq 0 ]; then
   exit 0
 fi
 
-mkdir -p "$ARCH"
-for f in "${MOVER[@]}"; do mv -n "$f" "$ARCH/" || echo "    no se pudo mover: $f"; done
+ERRORES=0
+if [ ${#MOVER[@]} -gt 0 ]; then
+  if [ -L "$ARCH" ] || { [ -e "$ARCH" ] && [ ! -d "$ARCH" ]; }; then
+    echo "no se puede usar como archivo una ruta que no sea un directorio regular: $ARCH"
+    exit 1
+  fi
+  mkdir -p -- "$ARCH" || { echo "no se pudo crear la carpeta de archivo: $ARCH"; exit 1; }
+  [ -d "$ARCH" ] && [ ! -L "$ARCH" ] || {
+    echo "la carpeta de archivo dejó de ser un directorio regular: $ARCH"
+    exit 1
+  }
+
+  for f in "${MOVER[@]}"; do
+    # Revalidación justo antes de mover: protege también frente a un cambio
+    # del elemento entre la simulación interna y esta fase.
+    if ! es_salida_regular "$f"; then
+      echo "    no se movió porque ya no es una salida regular válida: $f"
+      ERRORES=1
+      continue
+    fi
+    destino=$ARCH/${f##*/}
+    manifiesto=$f$SUFIJO_MANIFIESTO
+    destino_manifiesto=$destino$SUFIJO_MANIFIESTO
+    if [ -e "$destino" ] || [ -L "$destino" ] \
+        || [ -e "$destino_manifiesto" ] || [ -L "$destino_manifiesto" ]; then
+      echo "    no se sobrescribió el archivo existente: $destino"
+      ERRORES=1
+      continue
+    fi
+    mv -n -- "$manifiesto" "$destino_manifiesto" || {
+      echo "    no se pudo mover el manifiesto: $manifiesto"
+      ERRORES=1
+      continue
+    }
+    if [ -e "$manifiesto" ] || [ -L "$manifiesto" ]; then
+      echo "    no se movió el manifiesto: el destino apareció durante la operación"
+      ERRORES=1
+      continue
+    fi
+    mv -n -- "$f" "$destino" || {
+      echo "    no se pudo mover: $f"
+      mv -n -- "$destino_manifiesto" "$manifiesto" || true
+      ERRORES=1
+      continue
+    }
+    # GNU mv -n puede devolver 0 cuando omite una colisión aparecida entre la
+    # comprobación y el mv. Si el origen sigue ahí, no se anuncia como movido.
+    if [ -e "$f" ] || [ -L "$f" ]; then
+      echo "    no se movió ni sobrescribió: el destino apareció durante la operación"
+      mv -n -- "$destino_manifiesto" "$manifiesto" || true
+      ERRORES=1
+    fi
+  done
+fi
+
 echo
-echo "═══ CÓMO QUEDA ═══"
-ls -1 "$V" | sed 's/^/  /'
+echo "═══ RESULTADO ═══"
+echo "  se conserva: ${BUENA##*/}"
+echo "  archivo recuperable: $ARCH/"
 echo
-echo "  para verlo:  xdg-open \"$BUENA\""
-echo "  para deshacer: mv \"$ARCH\"/* \"$V\"/"
+echo "  para verlo: xdg-open \"$BUENA\""
+echo "  para deshacer sin sobrescribir: mv -n -- \"$ARCH\"/* \"$V\"/"
+
+[ $ERRORES -eq 0 ]

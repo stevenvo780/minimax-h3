@@ -113,7 +113,8 @@ CALLLOG="$SANDBOX/ffmpeg_calls.log"
 : > "$CALLLOG"
 
 # ── ejecutar el pipeline REAL (no tocamos el repo: MD/DEST apuntan a /tmp) ─
-OUT=$(MD="$SANDBOX" DEST="$SANDBOX/salida" ORDEN_TAB_LOG="$CALLLOG" PATH="$STUBBIN:$PATH" \
+OUT=$(MD="$SANDBOX" DEST="$SANDBOX/salida" CERROJO="$SANDBOX/generacion.lock" \
+      ORDEN_TAB_LOG="$CALLLOG" PATH="$STUBBIN:$PATH" \
       bash "$RAIZ/produccion/producir.sh" "$GUION" prueba 2>&1)
 RC=$?
 

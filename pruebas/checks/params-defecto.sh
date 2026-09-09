@@ -105,7 +105,8 @@ correr() {   # $1=rel  $2=etiqueta  $3=esperado  $4...=asignaciones de entorno
   # a sd-cli. Lo que se juzga es con que parametros lo llamaron.
   env -u W -u H -u FRAMES -u STEPS -u OUT -u IMG -u NAME -u SEED -u FPS -u CFG \
       -u BACKEND -u PARAMS_BACKEND -u MAXVRAM \
-      MD="$ROOT" DEST="$ROOT/dest" STUB_LOG="$LOG" SEGS=1 "$@" \
+      MD="$ROOT" DEST="$ROOT/dest" CERROJO="$ROOT/generacion.lock" \
+      STUB_LOG="$LOG" SEGS=1 "$@" \
       bash "$RAIZ/$rel" $ARGS > "$WD/out$n" 2>&1
 
   local got; got=$(head -n1 "$LOG" 2>/dev/null || true)

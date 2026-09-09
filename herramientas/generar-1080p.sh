@@ -3,6 +3,9 @@
 # Uso: [FRAMES=345 STEPS=20 W=512 H=288 NAME=mi-clip] generar-1080p.sh "prompt"
 set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
+# Es un único trabajo con paralelismo interno: reserva el recurso una vez para
+# que sus cuatro workers puedan repartirse las GPU sin solaparse con otra obra.
+reservar_generacion_completa || exit $?
 
 WORK=$(mktemp -d /tmp/h3-1080p-XXXXXX)
 trap 'rm -rf "$WORK"' EXIT
@@ -36,7 +39,8 @@ T1=$SECONDS
 worker() {  # $1=device  $2=lista
   local ERRLOG="$WORK/worker-$1-$BASHPID.log"
   while read -r f; do
-    sd_upscale "$f" "$WORK/out/$(basename "$f")" "$1" 512 >> "$ERRLOG" 2>&1
+    _sd_upscale_ejecutar "$f" "$WORK/out/$(basename "$f")" "$1" 512 \
+      >> "$ERRLOG" 2>&1
   done < "$2"
 }
 ls $WORK/in/*.png > $WORK/all.txt

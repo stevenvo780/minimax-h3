@@ -30,6 +30,9 @@ CATS = os.path.join(RAIZ, "harness", "categorias")
 # ~2.6 palabras por segundo es el ritmo medido en las piezas que salieron bien:
 # 14.4 s de toma con unas 37 palabras de dialogo.
 PALABRAS_POR_SEG = 2.6
+# Tipos que consumen el TEXTO (dialogo). El resto del ritmo se rellena con
+# planos de apoyo y no lleva narracion: el modelo solo genera voz con una cara.
+TIPOS_VOZ = {"habla", "informativo"}
 
 def cargar(nombre):
     f = os.path.join(CATS, nombre + ".json")
@@ -38,10 +41,17 @@ def cargar(nombre):
         sys.exit(f"no existe la categoria '{nombre}'. Disponibles: {disp}")
     return json.load(open(f, encoding="utf-8"))
 
+_ABREV = re.compile(
+    r"\b(EE\.UU|U\.S|EEUU|Sr|Sra|Dr|Dra|n[oº]|etc)\.",
+    re.IGNORECASE,
+)
+
+
 def frases(texto):
     t = re.sub(r"\s+", " ", texto.strip())
+    t = _ABREV.sub(lambda m: m.group(0)[:-1] + "\uE000", t)
     partes = re.split(r"(?<=[.!?])\s+", t)
-    return [p.strip() for p in partes if p.strip()]
+    return [p.replace("\uE000", ".").strip() for p in partes if p.strip()]
 
 def agrupar(fs, seg_por_toma):
     """Agrupa frases en tomas sin partir ninguna: una frase cortada a la mitad
@@ -57,20 +67,20 @@ def agrupar(fs, seg_por_toma):
     if actual: tomas.append(" ".join(actual))
     return tomas
 
-def componer(cat, texto, seg_por_toma):
+def componer(cat, texto, seg_por_toma, ritmo=None):
     bloques = agrupar(frases(texto), seg_por_toma)
-    ritmo = cat.get("ritmo") or ["habla"]
+    ritmo = list(ritmo) if ritmo else list(cat.get("ritmo") or ["habla"])
     apoyos = list(cat.get("apoyos") or [])
     filas, i_bloque, i_apoyo, i_ritmo = [], 0, 0, 0
     # Se recorre el ritmo hasta colocar TODOS los bloques de texto. Los planos que
     # el ritmo pida y no sean 'habla' se rellenan con los apoyos, en circulo.
     while i_bloque < len(bloques):
         tipo = ritmo[i_ritmo % len(ritmo)]; i_ritmo += 1
-        if tipo == "habla":
+        if tipo in TIPOS_VOZ:
             filas.append((bloques[i_bloque], tipo)); i_bloque += 1
         elif apoyos:
             filas.append((apoyos[i_apoyo % len(apoyos)], tipo)); i_apoyo += 1
-        # sin apoyos definidos, un ritmo no-habla se salta en vez de inventar
+        # sin apoyos definidos, un ritmo sin voz se salta en vez de inventar
     return filas
 
 def escribir(cat, filas, salida, texto_original):
@@ -104,6 +114,10 @@ if __name__ == "__main__":
     ap.add_argument("categoria"); ap.add_argument("salida")
     ap.add_argument("--texto"); ap.add_argument("--fichero")
     ap.add_argument("--seg-por-toma", type=float, default=14.4)
+    ap.add_argument(
+        "--ritmo",
+        help="ritmo de tipos separado por comas; pisa el de la categoria",
+    )
     a = ap.parse_args()
     if a.fichero:
         texto = open(a.fichero, encoding="utf-8").read()
@@ -112,7 +126,8 @@ if __name__ == "__main__":
     else:
         sys.exit("hace falta --texto o --fichero")
     cat = cargar(a.categoria)
-    filas = componer(cat, texto, a.seg_por_toma)
+    ritmo = [x.strip() for x in a.ritmo.split(",") if x.strip()] if a.ritmo else None
+    filas = componer(cat, texto, a.seg_por_toma, ritmo=ritmo)
     if not filas: sys.exit("el texto no produjo ninguna toma")
     n = escribir(cat, filas, a.salida, texto)
     hab = sum(1 for _, t in filas if t == "habla")

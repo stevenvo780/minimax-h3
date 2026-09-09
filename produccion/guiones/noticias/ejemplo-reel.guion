@@ -1,0 +1,14 @@
+# ── NOTICIAS · ejemplo de reel 9:16 ────────────────────────────────────────
+# Texto de demostracion, no una noticia real. 2 tomas informativo, sin B-roll:
+# un plano de apoyo duraria lo mismo que una toma hablada y el modelo no
+# genera voz en off.
+#
+# Generado a mano para que pruebas/checks/guiones.sh lo valide. Para producir
+# uno de verdad: produccion/reel-noticias.sh --titular "..." --texto "..." --nombre corte
+@TIPO informativo
+@ESCENA Vertical 9:16 composition. A woman of about thirty-five with dark hair in a neat low bun, wearing a charcoal blazer over a white shirt, looking straight into the camera. Medium close-up from the chest up, her face and shoulders occupying the upper two-thirds of the frame, the lower fifth visually quiet and uncluttered for captions. Even soft broadcast lighting, no hard shadows. Behind her a deep navy newsroom wall softly out of focus, a muted abstract graphic, no readable text. Static locked-off camera, clean unstylised news look.
+@AMBIENTE A very quiet studio room tone with no identifiable sounds, and the clear measured female dialogue spoken by the presenter.
+@MUSICA No music.
+
+TOMA|El congreso aprueba hoy la ley de vivienda que lleva dos años en trámite.|inicio|informativo
+TOMA|El texto fija un tope al alquiler en zonas tensionadas y entra en vigor el mes que viene.|ancla|informativo

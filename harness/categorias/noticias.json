@@ -1,14 +1,22 @@
 {
   "nombre": "noticias",
-  "descripcion": "Presentador de informativo con planos de apoyo. Alterna rostro y detalle.",
-  "escena": "A woman of about forty with dark hair pulled back, wearing a navy blue blazer over a white shirt, seated at a plain desk. Medium close-up from the chest up, centred in frame. Even soft studio lighting with no hard shadows. Behind her a deep neutral grey wall, softly out of focus. Static locked-off camera, clean and unstylised.",
+  "descripcion": "Reel vertical 9:16 para TikTok e Instagram: presentadora a camara, frases cortas, sin B-roll. El discurso no se corta.",
+  "escena": "Vertical 9:16 composition. A woman of about thirty-five with dark hair in a neat low bun, wearing a charcoal blazer over a white shirt, looking straight into the camera. Medium close-up from the chest up, her face and shoulders occupying the upper two-thirds of the frame, the lower fifth visually quiet and uncluttered for captions. Even soft broadcast lighting, no hard shadows. Behind her a deep navy newsroom wall softly out of focus, a muted abstract graphic, no readable text. Static locked-off camera, clean unstylised news look.",
   "ambiente": "A very quiet studio room tone with no identifiable sounds, and the clear measured female dialogue spoken by the presenter.",
   "musica": "No music.",
-  "ritmo": ["habla", "habla", "detalle"],
+  "ritmo": ["informativo"],
   "apoyos": [
-    "Extreme close-up of a printed newspaper page on a desk, the columns of text sharp under even light, a hand turning it slowly.",
-    "Extreme close-up of a hand writing quickly in a notebook with a black pen, the paper filling the frame.",
-    "Extreme close-up of a desk clock, the second hand sweeping steadily across the dial."
+    "Extreme close-up of a hand scrolling on a smartphone, screen glow on the fingers, no readable text.",
+    "A city avenue at dusk from a high window, traffic lights moving, no identifiable faces.",
+    "Over-the-shoulder of a laptop on a news desk, the screen out of focus, a mug and a recorder beside it."
   ],
-  "notas": "El ritmo alterna dos tomas habladas y una de apoyo. OJO: el modelo solo genera voz sincronizada con una cara, asi que el discurso SE INTERRUMPE en cada plano de apoyo. No hay voz en off."
+  "formato": {
+    "ancho": 416,
+    "alto": 736,
+    "frames": 192,
+    "pasos": 20,
+    "export_ancho": 1080,
+    "export_alto": 1920
+  },
+  "notas": "Todas las tomas son informativo a proposito. Un plano de apoyo en este pipeline dura LO MISMO que una toma hablada (8 s a 192 fotogramas), y el modelo no genera voz en off: ocho segundos de silencio rompen un reel. El B-roll queda en 'apoyos' por si se pide --broll con tomas cortas (107 f = 4,5 s). 416x736 no esta medido como formato: es el mismo producto de pixeles que 736x416 (VRAM equivalente). La primera tanda real dira si el modelo respeta el encuadre vertical."
 }

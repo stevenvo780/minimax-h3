@@ -28,8 +28,10 @@ for k in ("nombre","descripcion","escena","ambiente","musica","ritmo"):
 if not isinstance(d["ritmo"],list) or not d["ritmo"]:
     print(f"FALLA harness: {f} con ritmo vacio"); sys.exit(1)
 # Un ritmo que pida planos de apoyo sin definirlos deja huecos silenciosos.
-if any(t!="habla" for t in d["ritmo"]) and not d.get("apoyos"):
-    print(f"FALLA harness: {f} pide planos que no son habla pero no define 'apoyos'"); sys.exit(1)
+# 'informativo' es voz, igual que 'habla': no consume apoyos.
+VOZ={"habla","informativo"}
+if any(t not in VOZ for t in d["ritmo"]) and not d.get("apoyos"):
+    print(f"FALLA harness: {f} pide planos que no son voz pero no define 'apoyos'"); sys.exit(1)
 PY
 done
 

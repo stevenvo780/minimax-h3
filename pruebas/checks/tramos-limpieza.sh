@@ -73,6 +73,7 @@ chmod +x "$T/bin/sd-cli" "$T/stubbin/ffmpeg" "$T/stubbin/ffprobe"
 # maquina que si tenga ffmpeg/ffprobe reales (kratos).
 export PATH="$T/stubbin:$PATH"
 export DEST="$T/salida"
+export CERROJO="$T/generacion.lock"
 
 # Guion 1: dos planos hablados SIN encadenar -> frontera de tramo en el indice 2.
 cat > "$T/g1.guion" <<'EOF'

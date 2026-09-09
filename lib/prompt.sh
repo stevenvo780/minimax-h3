@@ -14,8 +14,9 @@
 #  Uso:  construir_prompt <tipo> <escena> <contenido> <ambiente> <musica>
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Tipos disponibles. Añadir uno es añadir un case aqui y nada mas.
-PROMPT_TIPOS="habla muda accion detalle paisaje camara"
+# Tipos disponibles. Añadir uno es añadir un case aqui Y el mismo nombre en
+# harness/planificar.py VALID_TYPES (si no, el planificador lo rechaza antes).
+PROMPT_TIPOS="habla muda accion detalle paisaje camara informativo"
 
 _cuerpo_prompt() {   # $1=tipo  $2=escena  $3=contenido
   local tipo=$1 escena=$2 cont=$3
@@ -24,6 +25,12 @@ _cuerpo_prompt() {   # $1=tipo  $2=escena  $3=contenido
       # Retrato hablado. El <d>[Spanish]...</d> es lo que dispara el habla
       # sincronizada; sin esa marca el modelo no genera voz.
       printf '%s He speaks with calm deliberation, unhurried, pausing naturally between sentences. Subject 1 (S1) says, <d>[Spanish] %s</d> When his voice stops, his lips settle closed and he holds the gaze, breathing slowly.' \
+        "$escena" "$cont" ;;
+    informativo)
+      # Presentador de noticias para reel vertical. Frases cortas, mira a
+      # camara, sin la calma filosofica de 'habla'. El genero va en la escena,
+      # no aqui: "the presenter" no pelea con un hombre o una mujer.
+      printf '%s The presenter addresses the camera with urgent, clear news-anchor delivery, short sentences, no hesitation. Subject 1 (S1) says, <d>[Spanish] %s</d> When the voice stops, the presenter holds the gaze, composed, ready for the next beat.' \
         "$escena" "$cont" ;;
     muda)
       # Persona en plano, sin hablar. Util para reaccion, escucha, silencio.

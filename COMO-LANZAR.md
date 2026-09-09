@@ -1,6 +1,30 @@
 # Cómo lanzar una tanda
 
-## La versión corta
+## Un reel de noticias (TikTok / Instagram)
+
+```bash
+produccion/reel-noticias.sh \
+  --titular "El congreso aprueba hoy la ley de vivienda" \
+  --texto "$(cat noticia.txt)" \
+  --nombre corte-vivienda
+```
+
+Nativo **416×736** (9:16, los mismos píxeles que 736×416). Subtítulos quemados
+por encima de la UI del feed. Export **1080×1920**. No inventa: recorta.
+
+```bash
+VALIDAR=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
+ui/servidor.py          # titular + cuerpo → el mismo pipeline
+```
+
+`BROLL=1` intercalas planos de apoyo y baja a 107 fotogramas (4,5 s): un apoyo
+a 8 s es un silencio de 8 s, el modelo no hace voz en off.
+
+El motor de siempre, abajo, sigue sirviendo para filosofía y para cualquier
+`.guion`. Un reel de noticias **es** una tanda anclada, con otro tipo de plano
+(`informativo`) y otro encuadre.
+
+## La versión corta (motor MiniMax-H3)
 
 ```bash
 cd minimax-h3
@@ -70,19 +94,19 @@ produccion/formatos.sh                      # detalle, camara, accion, paisaje
 VALIDAR=1 produccion/producir-anclado.sh g.guion x   # revisar el guion SIN gastar GPU
 ```
 
-Los seis tipos de plano están en `lib/prompt.sh` y documentados en el README.
+Los tipos de plano están en `lib/prompt.sh` y documentados en el README. `informativo` es el del reel de noticias.
 
 ## Comprobar una pieza a mano
 
 ```bash
-produccion/auditar.py plano    video.avi     nota y bloques
-produccion/auditar.py contacto video.avi h.jpg   9 fotogramas para MIRARLO
-produccion/auditar.py habla    video.avi     que no se calle a la mitad
-produccion/auditar.py audio    video.avi     ruido real, sin confundirlo con volumen
-produccion/auditar.py obra     obra/nombre/  mide cada ESLABÓN si hay varios planos
-produccion/auditar.py manchas  video.avi     escanea TODOS los fotogramas
-produccion/auditar.py estabilidad video.avi  deriva, SIN suponer que hay una cara
-produccion/comparar-formatos.sh              tabla comparable entre formatos
+calidad/auditar.py plano    video.avi     nota y bloques
+calidad/auditar.py contacto video.avi h.jpg   9 fotogramas para MIRARLO
+calidad/auditar.py habla    video.avi     que no se calle a la mitad
+calidad/auditar.py audio    video.avi     ruido real, sin confundirlo con volumen
+calidad/auditar.py obra     obra/nombre/  mide cada ESLABÓN si hay varios planos
+calidad/auditar.py manchas  video.avi     escanea TODOS los fotogramas
+calidad/auditar.py estabilidad video.avi  deriva, SIN suponer que hay una cara
+calidad/comparar-formatos.sh              tabla comparable entre formatos
 ```
 
 ### Lo que NINGUNA métrica de este proyecto ve
@@ -219,8 +243,15 @@ negaba —con razón— a montar un vídeo incompleto, y **nunca escaló nada**.
 
   # por script, con el patrón PARTIDO para que tu cmdline no lo contenga entero
   P='fi'; P="${P}x.sh"
-  ps -eo pid,args | awk -v a="$P" -v mio=$$ '$1!=mio && index($0,a){print $1}'
+  # OJO: NO se lo pases a awk con -v. Eso mete el patrón en la línea de
+  # comandos del PROPIO awk, que entonces hace match consigo mismo. Pasa de
+  # verdad: se ve el pid del awk en la lista. Va por el entorno, que no
+  # aparece en /proc/<pid>/cmdline.
+  P="$P" ps -eo pid,args | awk -v mio=$$ '$1!=mio && index($0,ENVIRON["P"]){print $1}'
   ```
+  Y después de matar, **comprueba el efecto, no el código de salida**: cuenta
+  los procesos que quedan (`pgrep -x sd-cli | wc -l`) antes de dar nada por
+  hecho.
 - **No midas mientras genera.** Escanear todos los fotogramas de un clip mientras el modelo
   decodifica el VAE mató una toma en el paso 16/20: 18 minutos de GPU. Durante una generación
   la RAM del cgroup baja a decenas de MiB. `comparar-formatos.sh` se niega solo; para forzarlo

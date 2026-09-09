@@ -127,9 +127,12 @@ ff()  { ffmpeg -nostdin "$@"; }
 ffp() { ffprobe "$@"; }
 
 # ── sd-cli: una sola definición de la llamada de generación ────────────────
-# Uso:  sd_vid_gen "<prompt>" "<salida.mp4>" [args extra: -s N, --init-img f...]
-# OJO: sd-cli escribe en "<salida>.avi", no en "<salida>". Usar sd_salida().
-sd_vid_gen() {
+# Tres horas cubren las tomas largas que ya usa produccion/anclado. Se puede
+# acortar por trabajo; un valor invalido falla cerrado y nunca lanza sd-cli.
+SD_VID_GEN_ESPERA=${SD_VID_GEN_ESPERA:-10800}
+
+# Runner privado: sd_vid_gen es la unica entrada publica y pone el cerrojo.
+_sd_vid_gen_ejecutar() {
   local PROMPT=$1 OUT=$2; shift 2
   "$SDCLI" -M vid_gen \
     --diffusion-model "$MODELO_DIFF" \
@@ -145,16 +148,30 @@ sd_vid_gen() {
     -o "$OUT" "$@" < /dev/null
 }
 
+# Uso:  sd_vid_gen "<prompt>" "<salida.mp4>" [args extra: -s N, --init-img f...]
+# OJO: sd-cli escribe en "<salida>.avi", no en "<salida>". Usar sd_salida().
+sd_vid_gen() {
+  local PROMPT=$1 OUT=$2; shift 2
+  con_cerrojo "$SD_VID_GEN_ESPERA" _sd_vid_gen_ejecutar "$PROMPT" "$OUT" "$@"
+}
+
 # Ruta real del fichero que deja sd-cli cuando le pides "-o algo.mp4".
 sd_salida() { echo "$1.avi"; }
 
 # ── sd-cli: escalado ───────────────────────────────────────────────────────
 # Uso:  sd_upscale <entrada.png> <salida.png> <backend: CUDA0|CUDA1> [tile]
-sd_upscale() {
+# El escalado participa del mismo contrato global que vid_gen. Aunque use otra
+# GPU, ffmpeg/modelos compiten por la RAM del mismo cgroup.
+SD_UPSCALE_ESPERA=${SD_UPSCALE_ESPERA:-10800}
+_sd_upscale_ejecutar() {
   "$SDCLI" -M upscale -i "$1" \
     --upscale-model "$UPSCALER" \
     --upscale-tile-size "${4:-512}" --backend "$3" \
     -o "$2" < /dev/null
+}
+
+sd_upscale() {
+  con_cerrojo "$SD_UPSCALE_ESPERA" _sd_upscale_ejecutar "$@"
 }
 
 # ── Comprobación de dependencias externas ──────────────────────────────────
@@ -172,23 +189,102 @@ requiere() {
 # murieron LAS DOS con SIGKILL del OOM killer, sin dejar nada util.
 # Toda generacion debe pasar por aqui.
 #
+#   reservar_generacion_completa   -> retiene el recurso hasta salir del script
 #   con_cerrojo <segundos_de_espera> <comando...>
-con_cerrojo() {
-  local espera=$1; shift
+reservar_generacion_completa() {
   local lock=${CERROJO:-${TMPDIR:-/tmp}/h3-generacion.lock}
-  local t=0
-  exec 9>"$lock" || { echo "cerrojo: no puedo abrir $lock" >&2; return 1; }
-  while ! flock -n 9; do
-    if [ "$t" -ge "$espera" ]; then
-      echo "cerrojo: otra generacion lleva mas de ${espera}s ocupando el turno" >&2
-      exec 9>&-; return 1
+  local proceso=${BASHPID:-$$}
+  local fd
+
+  if [ -n "${CERROJO_OBRAS:-}" ] && [ "$CERROJO_OBRAS" != "$lock" ]; then
+    echo "cerrojo: CERROJO_OBRAS no puede diferir de CERROJO" >&2
+    return 2
+  fi
+  if [ "${_H3_CERROJO_BASHPID:-}" = "$proceso" ] \
+      && [ "${_H3_CERROJO_RUTA:-}" = "$lock" ]; then
+    return 0
+  fi
+  command -v flock >/dev/null 2>&1 || {
+    echo "cerrojo: falta el comando flock; no reservo el recurso" >&2
+    return 1
+  }
+  if ! exec {fd}>"$lock"; then
+    echo "cerrojo: no puedo abrir $lock" >&2
+    return 1
+  fi
+  if ! flock -n "$fd"; then
+    echo "cerrojo: ya hay otra obra o generacion activa; no solapo el trabajo" >&2
+    exec {fd}>&- || true
+    return 1
+  fi
+
+  # Globales a proposito: el descriptor queda abierto hasta que termine este
+  # Bash y con_cerrojo reconoce las llamadas anidadas del mismo BASHPID.
+  H3_CERROJO_FD=$fd
+  CERROJO=$lock
+  CERROJO_OBRAS=$lock
+  _H3_CERROJO_BASHPID=$proceso
+  _H3_CERROJO_RUTA=$lock
+}
+
+con_cerrojo() {
+  local espera=${1:-}
+  [ "$#" -gt 0 ] && shift
+  local lock=${CERROJO:-${TMPDIR:-/tmp}/h3-generacion.lock}
+  local proceso=${BASHPID:-$$}
+  local fd lock_rc rc
+
+  case "$espera" in
+    ''|*[!0-9]*)
+      echo "cerrojo: el tiempo de espera debe ser un entero no negativo (recibido: '$espera')" >&2
+      return 2
+      ;;
+  esac
+  [ "$#" -gt 0 ] || { echo "cerrojo: falta el comando" >&2; return 2; }
+
+  # Bash da alcance dinamico a los local: una llamada anidada en ESTE proceso
+  # ve estas marcas y no intenta adquirir dos veces el mismo flock. BASHPID
+  # evita que un subshell heredado confunda el cerrojo del padre con el suyo.
+  if [ "${_H3_CERROJO_BASHPID:-}" = "$proceso" ] &&
+     [ "${_H3_CERROJO_RUTA:-}" = "$lock" ]; then
+    if "$@"; then rc=0; else rc=$?; fi
+    return "$rc"
+  fi
+
+  command -v flock >/dev/null 2>&1 || {
+    echo "cerrojo: falta el comando flock; no lanzo la generacion" >&2
+    return 1
+  }
+
+  if ! exec {fd}>"$lock"; then
+    echo "cerrojo: no puedo abrir $lock" >&2
+    return 1
+  fi
+  if flock -n "$fd"; then
+    lock_rc=0
+  else
+    lock_rc=$?
+  fi
+  if [ "$lock_rc" -ne 0 ]; then
+    echo "cerrojo: hay otra generacion en curso, espero mi turno" >&2
+    if flock -w "$espera" "$fd"; then
+      lock_rc=0
+    else
+      lock_rc=$?
     fi
-    [ "$t" = 0 ] && echo "cerrojo: hay otra generacion en curso, espero mi turno" >&2
-    sleep 10; t=$((t+10))
-  done
-  "$@"; local rc=$?
-  flock -u 9; exec 9>&-
-  return $rc
+    if [ "$lock_rc" -ne 0 ]; then
+      echo "cerrojo: otra generacion lleva mas de ${espera}s ocupando el turno" >&2
+      exec {fd}>&- || true
+      return 1
+    fi
+  fi
+
+  local _H3_CERROJO_BASHPID=$proceso
+  local _H3_CERROJO_RUTA=$lock
+  if "$@"; then rc=0; else rc=$?; fi
+  flock -u "$fd" || true
+  exec {fd}>&- || true
+  return "$rc"
 }
 
 # ── Guardia de memoria ─────────────────────────────────────────────────────
@@ -229,10 +325,17 @@ ram_libre_mb() {
 
 hay_generacion_en_curso() {
   local lock=${CERROJO:-${TMPDIR:-/tmp}/h3-generacion.lock}
+  local fd
   [ -e "$lock" ] || return 1
-  exec 8>"$lock" 2>/dev/null || return 1
-  if flock -n 8; then flock -u 8; exec 8>&-; return 1; fi
-  exec 8>&-; return 0
+  command -v flock >/dev/null 2>&1 || return 1
+  exec {fd}>"$lock" 2>/dev/null || return 1
+  if flock -n "$fd"; then
+    flock -u "$fd" || true
+    exec {fd}>&- || true
+    return 1
+  fi
+  exec {fd}>&- || true
+  return 0
 }
 
 # ── El resto de la libreria ────────────────────────────────────────────────

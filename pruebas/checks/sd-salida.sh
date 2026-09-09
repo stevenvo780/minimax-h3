@@ -32,7 +32,7 @@ monta() {  # $1=destino  $2=mutar(si|no)
   printf '@ESCENA X\n@AMBIENTE Y\n@MUSICA Z\nHABLA|hola|inicio|\n' > "$D/produccion/guiones/t.guion"
 }
 corre() {  # $1=arbol -> imprime la linea del plano
-  ( cd "$1" && DEST="$1/out" FRAMES=5 STEPS=1 \
+  ( cd "$1" && DEST="$1/out" CERROJO="$1/generacion.lock" FRAMES=5 STEPS=1 \
       timeout 60 bash produccion/producir.sh produccion/guiones/t.guion t 2>&1 ) \
     | grep -aE '^  p01' | head -1
 }

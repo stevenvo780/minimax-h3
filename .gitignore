@@ -6,6 +6,7 @@ bin/
 archivo/
 produccion/obra/
 produccion/logs/
+produccion/candidatos/
 proyecto-minuto/shots/
 proyecto-minuto/up-mp4/
 proyecto-minuto/wk/
@@ -25,6 +26,10 @@ videos/
 *.png
 *.wav
 __pycache__/
+.venv-calidad/
 
 # la UI no genera artefactos, pero por si acaso
 ui/__pycache__/
+
+# Guiones compuestos desde la UI o reel-noticias.sh (el ejemplo si se versiona)
+produccion/guiones/noticias/generados/
