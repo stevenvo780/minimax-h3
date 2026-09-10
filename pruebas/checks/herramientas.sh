@@ -14,7 +14,7 @@ exec 0</dev/null
 # herramientas ANTES de generar nada, y salen != 0 con un mensaje que nombra
 # lo que falta.
 
-for s in produccion/producir-anclado.sh produccion/producir.sh; do
+for s in produccion/producir-anclado.sh; do
   [ -f "$RAIZ/$s" ] || { echo "FALLA $nombre: no existe $RAIZ/$s"; exit 1; }
 done
 
@@ -39,7 +39,7 @@ HABLA|Hola.|inicio|
 G
 
 fallos=0
-for s in produccion/producir-anclado.sh produccion/producir.sh; do
+for s in produccion/producir-anclado.sh; do
   out=$(cd "$RAIZ" && env PATH="$T/bin" HOME="$T" bash "$RAIZ/$s" "$T/m.guion" prueba 2>&1)
   rc=$?
   if [ $rc -eq 0 ]; then

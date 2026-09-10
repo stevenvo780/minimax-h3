@@ -1,59 +1,40 @@
 #!/bin/bash
-# sd-cli escribe en "<lo que le pasas a -o>.avi". Si un script comprueba una ruta
-# distinta a la que le paso, cree que TODOS los planos fallaron.
-# Esta regresion existio de verdad durante la revision (se comprobaba
-# sd_salida "$OUT" en vez de sd_salida "$OUT.mp4"): todos los planos habrian
-# reportado "FALLO DEFINITIVO". No se puede verificar contra el commit inicial
-# porque alli el bug no existia; se verifica mutando el codigo actual.
-RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
+# ═══════════════════════════════════════════════════════════════════════════
+#  SD-SALIDA — sd-cli NO escribe donde se le pide.
+#
+#  Si se le pasa "-o pieza.mp4", el fichero que aparece es "pieza.mp4.avi".
+#  Quien se olvide de eso construye una ruta que no existe, y en un runner eso
+#  significa dar por fallada una toma que salio bien, o publicar una pieza
+#  vacia. lib/comun.sh::sd_salida() es la unica traduccion valida.
+#
+#  Este check probaba esa propiedad a traves de produccion/producir.sh, el
+#  runner anterior, que ya no existe: era una prueba sobre codigo muerto. Ahora
+#  comprueba el contrato en lib/comun.sh y que TODOS los que llaman a sd-cli
+#  pasen por el, incluido el runner vivo.
+# ═══════════════════════════════════════════════════════════════════════════
 set -u
-NOMBRE="sd-salida"
-W=$(mktemp -d /tmp/chk-sdsalida-XXXXXX); trap 'rm -rf "$W"' EXIT
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
+nombre="sd-salida"
+exec 0</dev/null
+fallos=0
 
-# ── sd-cli falso: cumple el contrato real (-o X  ->  crea X.avi) ───────────
-mkdir -p "$W/bin"
-cat > "$W/bin/sd-cli" <<'STUB'
-#!/bin/bash
-o=""; while [ $# -gt 0 ]; do [ "$1" = "-o" ] && { o=$2; shift; }; shift; done
-[ -n "$o" ] || exit 2
-head -c 2048 /dev/urandom > "$o.avi"
-STUB
-chmod +x "$W/bin/sd-cli"
+# 1. El contrato: sd_salida añade .avi y nada mas.
+REAL=$(bash -c '. "$1"/lib/comun.sh >/dev/null 2>&1; sd_salida "/tmp/pieza.mp4"' _ "$RAIZ")
+[ "$REAL" = "/tmp/pieza.mp4.avi" ] \
+  || { echo "FALLA $nombre: sd_salida dio '$REAL', se esperaba /tmp/pieza.mp4.avi"; fallos=1; }
 
-# ── arbol de pruebas con el producir.sh REAL ───────────────────────────────
-monta() {  # $1=destino  $2=mutar(si|no)
-  local D=$1
-  mkdir -p "$D/lib" "$D/produccion/guiones" "$D/bin"
-  cp "$RAIZ/lib/comun.sh" "$D/lib/"
-  cp "$RAIZ/produccion/producir.sh" "$D/produccion/"
-  cp "$W/bin/sd-cli" "$D/bin/"
-  # la MUTACION: comprobar una ruta distinta de la que se le paso a sd_vid_gen
-  [ "$2" = "si" ] && sed -i 's|sd_salida "$OUT\.mp4"|sd_salida "$OUT"|g' "$D/produccion/producir.sh"
-  printf '@ESCENA X\n@AMBIENTE Y\n@MUSICA Z\nHABLA|hola|inicio|\n' > "$D/produccion/guiones/t.guion"
-}
-corre() {  # $1=arbol -> imprime la linea del plano
-  ( cd "$1" && DEST="$1/out" CERROJO="$1/generacion.lock" FRAMES=5 STEPS=1 \
-      timeout 60 bash produccion/producir.sh produccion/guiones/t.guion t 2>&1 ) \
-    | grep -aE '^  p01' | head -1
-}
+# 2. Todo el que invoca vid_gen tiene que resolver su salida con sd_salida.
+#    Un runner que construya la ruta a mano vuelve a caer en el mismo agujero.
+while IFS= read -r f; do
+  [ -f "$f" ] || continue
+  grep -q "sd_salida" "$f" \
+    || { echo "FALLA $nombre: $f llama a vid_gen y no usa sd_salida"; fallos=1; }
+done < <(grep -rl -- "-M vid_gen" "$RAIZ"/produccion/*.sh "$RAIZ"/herramientas/*.sh \
+           "$RAIZ"/lib/*.sh 2>/dev/null)
 
-monta "$W/bueno"   no
-monta "$W/mutante" si
-BUENO=$(corre "$W/bueno")
-MUT=$(corre "$W/mutante")
+# 3. El runner vivo, explicito: si alguien lo reescribe sin sd_salida, salta.
+grep -q 'sd_salida "\$temporal"' "$RAIZ/produccion/producir-anclado.sh" \
+  || { echo "FALLA $nombre: producir-anclado.sh dejo de resolver su salida con sd_salida"; fallos=1; }
 
-# El bueno tiene que detectar el .avi; el mutante tiene que perderlo.
-case "$BUENO" in
-  *OK*) : ;;
-  *) echo "FALLA $NOMBRE: con el codigo actual el plano NO se detecta -> '$BUENO'"; exit 1;;
-esac
-case "$MUT" in
-  *"FALLO DEFINITIVO"*) : ;;
-  *) echo "FALLA $NOMBRE: el check no discrimina; la mutacion tambien dio '$MUT'"; exit 1;;
-esac
-# Y el fichero final tiene que quedar como pNN.avi, no como pNN.mp4.avi
-[ -f "$W/bueno/produccion/obra/t/p01.avi" ] || {
-  echo "FALLA $NOMBRE: no quedo obra/t/p01.avi tras el mv"; exit 1; }
-
-echo "PASA $NOMBRE (actual: '$BUENO' · mutado: '$MUT')"
-exit 0
+[ $fallos -eq 0 ] && echo "ok $nombre (contrato .avi y todos los llamantes lo usan)"
+exit $fallos

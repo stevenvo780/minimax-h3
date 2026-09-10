@@ -87,67 +87,63 @@ else
   fi
 fi
 
-echo "═══ D. MONTAJE COMPLETO (sin GPU, sobre una obra fabricada aqui) ═══"
-# Antes este bloque buscaba produccion/obra/existencialismo*, que no se
-# versiona: en un clon limpio salia SALTA siempre, y ademas ataba la prueba de
-# humo a los guiones de la etapa filosofia. Ahora la obra se fabrica con
-# lavfi, asi que el bloque corre en cualquier maquina con ffmpeg y no depende
-# de material que ya no se produce.
-OBRA=$RAIZ/produccion/obra
+echo "═══ D. LA COLA DEL REEL (sin GPU) ═══"
+# Montaje + subtitulos + export sobre clips fabricados aqui. Es el tramo que
+# convierte tomas en producto, y el que se ha roto de verdad: una vez porque
+# el AAC redondea y el concat salia con una linea de tiempo irregular, otra
+# porque el subtitulo se rasterizaba a 416 y se ampliaba 2,6x. Antes este
+# bloque montaba con produccion/producir.sh, el runner anterior, que ya no
+# existe: probaba un camino que nadie recorria.
 if [ $HAY_FF -eq 0 ]; then
-  paso "montaje de la obra"; salta "requiere ffmpeg"
+  paso "la cola del reel"; salta "requiere ffmpeg"
 else
-  MONT=$OBRA/humo-montaje
-  rm -rf "$MONT"; mkdir -p "$MONT/montaje"
-  GUION=$T/humo-montaje.guion
-  {
-    echo "@ESCENA Una escena estable de prueba."
-    echo "@AMBIENTE Un tono de sala muy silencioso."
-    echo "@MUSICA Sin musica."
-    echo ""
-    echo "HABLA|Primera frase de la prueba de humo.|"
-    # 'encadena' marca que la segunda toma continua la primera: sin frontera
-    # de tramo, y por tanto sin fundido. Es lo que hace que tramos.txt tenga
-    # que quedar VACIO despues de limpiarlo.
-    echo "HABLA|Segunda frase de la prueba de humo.|encadena"
-  } > "$GUION"
-  N=2
-  for i in 01 02; do
+  MONT=$T/montaje
+  mkdir -p "$MONT"
+  # Dos clips de duraciones DISTINTAS y una que no cae en tramas AAC enteras:
+  # 90 f = 3,75 s es el caso exacto que rompio el montaje de kyiv.
+  for par in "01 90" "02 192"; do
+    set -- $par
     ffmpeg -nostdin -y -v error \
-      -f lavfi -i "color=c=gray:s=320x176:d=2:r=24" \
-      -f lavfi -i "sine=frequency=440:duration=2" \
-      -shortest -c:v mjpeg -q:v 5 -c:a pcm_s16le "$MONT/p$i.avi" || break
+      -f lavfi -i "testsrc2=s=416x736:d=$(awk -v f=$2 'BEGIN{print f/24}'):r=24" \
+      -f lavfi -i "sine=frequency=440:duration=$(awk -v f=$2 'BEGIN{print f/24}')" \
+      -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -ar 48000 \
+      "$MONT/$1.mp4" 2>/dev/null
   done
-  if [ ! -s "$MONT/p01.avi" ] || [ ! -s "$MONT/p02.avi" ]; then
-    paso "montaje de la obra"; salta "no pude fabricar los planos de prueba"
-  else
-  printf '02\n07\n11\n' > "$MONT/montaje/tramos.txt"   # fronteras falsas a proposito
-  DEST=$T bash "$RAIZ/produccion/producir.sh" "$GUION" humo-montaje > "$T/mont.log" 2>&1
-  paso "los $N planos se saltan (idempotencia)"
-  [ "$(grep -ac 'ya existe, salto' "$T/mont.log")" -eq "$N" ] && si || no "$(grep -ac 'ya existe, salto' "$T/mont.log")/$N"
-  # Que el fichero ya no exista es el resultado IDEAL: este guion no tiene
-  # fronteras de tramo, asi que tras limpiarlo no hay motivo para recrearlo.
-  paso "tramos.txt se regenero (no sobrevive lo falso)"
-  TRF=$MONT/montaje/tramos.txt
-  if [ ! -f "$TRF" ]; then si
-  else
-    TR=$(tr '\n' ' ' < "$TRF")
-    case "$TR" in *02*|*07*|*11*) no "sobrevivieron las fronteras falsas: '$TR'";; *) si;; esac
+  printf '02\n' > "$MONT/tramos.txt"
+  GUION=$T/cola.guion
+  {
+    echo "@TIPO informativo"; echo "@ESCENA e"; echo "@AMBIENTE a"; echo "@MUSICA m"
+    echo "TOMA|El congreso aprueba hoy la ley de vivienda.|inicio|informativo|frames=90"
+    echo "TOMA|El texto fija un tope al alquiler en zonas tensionadas y entra en vigor.|ancla|informativo|frames=192"
+  } > "$GUION"
+
+  paso "fundir monta clips de duracion desigual"
+  if PUNCH_ALTERNO=1.09 TRANSICION=corte python3 "$RAIZ/produccion/fundir.py" \
+       "$MONT" "$T/montado.mp4" > "$T/fundir.log" 2>&1
+  then si; else no "$(tail -1 "$T/fundir.log")"; fi
+
+  if [ -s "$T/montado.mp4" ]; then
+    paso "el montaje conserva 24 fps"
+    FR=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$T/montado.mp4")
+    [ "$FR" = "24/1" ] && si || no "r_frame_rate=$FR (el concat dejo una linea de tiempo irregular)"
+
+    paso "los subtitulos se queman al exportar a 1080x1920"
+    CUES=$T/cues; mkdir -p "$CUES"
+    if VF=$(python3 "$RAIZ/produccion/subtitular.py" "$T/montado.mp4" --guion "$GUION" \
+              --salida /dev/null --solo-filtro --dir-textos "$CUES" --alto 1920 2>"$T/subs.err") \
+       && SUBS_VF="$VF" bash "$RAIZ/produccion/exportar-reel.sh" "$T/montado.mp4" "$T/reel.mp4" \
+              >"$T/export.log" 2>&1
+    then si; else no "$(tail -1 "$T/subs.err" "$T/export.log" 2>/dev/null | tail -1)"; fi
+
+    if [ -s "$T/reel.mp4" ]; then
+      paso "el reel sale 1080x1920 a 48 kHz"
+      WH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$T/reel.mp4")
+      SR=$(ffprobe -v error -select_streams a:0 -show_entries stream=sample_rate -of csv=p=0 "$T/reel.mp4")
+      [ "$WH" = "1080,1920" ] && [ "$SR" = "48000" ] && si || no "$WH a $SR Hz"
+      paso "decodifica entero sin errores"
+      [ -z "$(ffmpeg -nostdin -v error -i "$T/reel.mp4" -f null - 2>&1)" ] && si || no "hay errores de decodificacion"
+    fi
   fi
-  paso "el video final se ensamblo"
-  FIN=$(ls -1t "$T"/humo-montaje-*.mp4 2>/dev/null | head -1)
-  [ -n "$FIN" ] && [ -s "$FIN" ] && si || { no "sin fichero final"; tail -12 "$T/mont.log"; }
-  if [ -n "${FIN:-}" ]; then
-    paso "el nombre coincide con el fichero real"
-    RWH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$FIN" 2>/dev/null)
-    RS=$(ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$FIN" 2>/dev/null)
-    ESP="${RWH%,*}x${RWH#*,}-$(awk "BEGIN{printf \"%.0f\", $RS}")s"
-    case "$(basename "$FIN")" in *"$ESP"*) si;; *) no "el nombre dice otra cosa que $ESP";; esac
-    paso "decodifica entero sin errores"
-    [ -z "$(ffmpeg -nostdin -v error -i "$FIN" -f null - 2>&1)" ] && si || no "hay errores de decodificacion"
-  fi
-  fi
-  rm -rf "$MONT"
 fi
 
 echo

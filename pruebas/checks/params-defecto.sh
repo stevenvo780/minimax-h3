@@ -13,13 +13,11 @@ COMUN="$RAIZ/lib/comun.sh"
 [ -f "$COMUN" ] || fallo "no existe $COMUN (params_defecto vive ahi: sin el, cada script vuelve a fijar W/H/FRAMES/STEPS por su cuenta)"
 
 # script -> "W H FRAMES STEPS" propios (sin entorno)
-SCRIPTS="herramientas/h3.sh herramientas/generar-1080p.sh produccion/producir.sh"
+SCRIPTS="herramientas/h3.sh herramientas/generar-1080p.sh"
 esperado_de() {
   case "$1" in
     "herramientas/h3.sh")           echo "864 480 56 20" ;;
     "herramientas/generar-1080p.sh") echo "512 288 56 20" ;;
-    "produccion/producir.sh")     echo "1376 768 107 20" ;;
-    "proyecto-minuto/generar.sh") echo "1376 768 107 20" ;;
     *) return 1 ;;
   esac
 }
@@ -119,8 +117,6 @@ for rel in $SCRIPTS; do
   espA=$(esperado_de "$rel")
   set -- $espA; espB="1280 $2 $3 $4"     # W=1280 del entorno debe ganar
   case "$rel" in
-    "produccion/producir.sh")     ARGS="$GUION humo" ;;
-    "proyecto-minuto/generar.sh") ARGS="" ;;
     *)                            ARGS="prompt-de-humo" ;;
   esac
   correr "$rel" "sin entorno" "$espA"
