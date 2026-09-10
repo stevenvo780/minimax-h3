@@ -540,6 +540,36 @@ MIB_POR_PXFRAME = 28.75 / (416 * 736)
 # Margen sobre la VRAM libre: la sonda midio con el escritorio ocupando 2,5 GB
 # y el consumo real varia unos cientos de MiB entre corridas.
 MIB_MARGEN = 400.0
+# Presupuesto DECLARADO, no lectura instantanea. Que el formato de una pieza
+# dependiera de cuanta VRAM habia libre en ese segundo hacia la salida
+# irreproducible: la misma noticia daba 368x656 o 336x624 segun lo que
+# estuviera abierto en el escritorio, y eso choca de frente con el plan y las
+# huellas, que existen para que la misma entrada de la misma salida.
+# La lectura viva se sigue usando, pero como GUARDA: si hay menos de esto, se
+# avisa y se espera, no se encoge la pieza en silencio.
+VRAM_PRESUPUESTO_MIB = 12900.0
+# Hasta donde llega la medicion. El modelo lineal se ajusto entre 192 y 396
+# fotogramas y NO se ha comprobado mas alla. Extrapolarlo costo un aborto:
+# a 566 fotogramas predecia 11.865 MiB, habia 12.300 libres y sd-cli murio con
+# SIGABRT en 20 s. Por encima de este numero no se sabe, y no saber se trata
+# como no caber: la pieza se parte en varias tomas en vez de apostar.
+#
+# Para subirlo hay que volver a medir:
+#   produccion/sonda-duracion.sh 336 624 447 498 566 617
+#
+# Y hay DOS topes, no uno. Estas cuatro observaciones lo demuestran:
+#
+#   396 f a 416x736 = 121 Mpx-f  ->  CABE
+#   447 f a 416x736 = 137 Mpx-f  ->  no cabe
+#   532 f a 352x640 = 120 Mpx-f  ->  CABE
+#   566 f a 336x624 = 119 Mpx-f  ->  no cabe
+#
+# Las dos ultimas tienen el mismo presupuesto de pixel-fotograma y resultado
+# opuesto: el numero de FOTOGRAMAS pesa por si solo, aparte de los pixeles.
+# Es lo que cabe esperar de la atencion sobre el eje temporal. Asi que se
+# respetan los dos: el presupuesto de memoria Y el mayor recuento que se ha
+# visto funcionar.
+FRAMES_MEDIDOS = 532
 
 
 def frames_que_caben(ancho: int, alto: int, vram_libre_mib: float) -> int:
@@ -553,7 +583,7 @@ def frames_que_caben(ancho: int, alto: int, vram_libre_mib: float) -> int:
 
 def formato_una_toma(
     palabras_totales: int,
-    vram_libre_mib: float,
+    vram_libre_mib: float = VRAM_PRESUPUESTO_MIB,
     ancho_max: int = 416,
     alto_max: int = 736,
 ) -> tuple[int, int, int]:
@@ -566,6 +596,11 @@ def formato_una_toma(
     segundos = palabras_totales / PALABRAS_POR_SEG + COLA_S
     frames = ((int(round(segundos * FPS)) - 5) // 17 + 1) * 17 + 5
     frames = max(FRAMES_MIN, frames)
+    if frames > FRAMES_MEDIDOS:
+        # Se recorta al mayor recuento que se ha visto funcionar. El texto no
+        # se toca: se dice un poco mas rapido, y si eso lo saca de la banda de
+        # ritmo, guionizar() lo avisa y quien mira decide.
+        frames = FRAMES_MEDIDOS
     disponible = vram_libre_mib - MIB_BASE - MIB_MARGEN
     if disponible <= 0:
         return FRAMES_MIN, ancho_max, alto_max

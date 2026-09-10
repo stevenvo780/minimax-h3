@@ -121,8 +121,17 @@ GUION=$DIR/${NOMBRE}.guion
 FORMATO=$DIR/${NOMBRE}.formato
 ARGS=(--guion "$GUION" --seg-objetivo "$SEG_OBJ" --seg-por-toma "$SEG_TOMA" --categoria noticias)
 if [ "${UNA_TOMA:-1}" = 1 ]; then
+  # El presupuesto es DECLARADO (harness/redaccion.py::VRAM_PRESUPUESTO_MIB) y
+  # no la lectura del momento: si el formato dependiera de cuanta VRAM hay
+  # libre en ese segundo, la misma noticia daria piezas distintas segun lo que
+  # estuviera abierto. La lectura viva se usa como guarda, no como entrada.
   LIBRE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1)
-  ARGS+=(--una-toma --vram-libre "${LIBRE:-13400}" --formato-salida "$FORMATO")
+  PRESUPUESTO=$(python3 -c 'import sys;sys.path.insert(0,"'"$MD"'/harness");import redaccion;print(int(redaccion.VRAM_PRESUPUESTO_MIB))')
+  if [ -n "$LIBRE" ] && [ "$LIBRE" -lt "$PRESUPUESTO" ]; then
+    echo "  aviso: ${LIBRE} MiB libres, menos que el presupuesto de ${PRESUPUESTO}."
+    echo "         Libera VRAM o la generacion puede abortar por OOM."
+  fi
+  ARGS+=(--una-toma --formato-salida "$FORMATO")
 fi
 [ -n "$RITMO" ] && ARGS+=(--ritmo "$RITMO")
 if [ -n "$TEMA" ]; then

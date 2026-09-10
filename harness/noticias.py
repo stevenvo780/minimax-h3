@@ -67,7 +67,7 @@ def redactar(
     seg_max_toma: float = 8.0,
     seg_objetivo: float = 32.0,
     una_toma: bool = False,
-    vram_libre_mib: float = 13400.0,
+    vram_libre_mib: float = redaccion.VRAM_PRESUPUESTO_MIB,
 ) -> dict:
     """Devuelve las TOMAS del reel, cada una con su duracion en fotogramas.
 
@@ -102,6 +102,17 @@ def redactar(
             frames, ancho, alto = redaccion.formato_una_toma(
                 tanteo["palabras"], vram_libre_mib
             )
+            if frames == 0:
+                # No cabe en una toma dentro de lo medido: reparto normal.
+                plan = redaccion.guionizar(titular, cuerpo, seg_max_toma, seg_objetivo)
+                plan["aviso_una_toma"] = (
+                    "%d palabras piden mas de %d fotogramas, que es hasta donde "
+                    "llega la medicion; se reparte en varias tomas"
+                    % (tanteo["palabras"], redaccion.FRAMES_MEDIDOS)
+                )
+                plan["titular"] = redaccion.frases(titular)[0]
+                plan["texto"] = " ".join(plan["tomas"])
+                return plan
             segundos = frames / redaccion.FPS
             plan = redaccion.guionizar(
                 titular, cuerpo, segundos, segundos, tomas_max=1,
@@ -263,8 +274,10 @@ def main() -> None:
              "9:16 a la que su locucion entera cabe en la VRAM libre",
     )
     ap.add_argument(
-        "--vram-libre", type=float, default=13400.0,
-        help="MiB de VRAM libres; gobierna el tamaño en modo --una-toma",
+        "--vram-libre", type=float, default=redaccion.VRAM_PRESUPUESTO_MIB,
+        help="presupuesto de VRAM en MiB; gobierna el tamaño en --una-toma. "
+             "Es declarado a proposito: con la lectura viva, la misma noticia "
+             "daria piezas distintas segun lo que hubiera abierto",
     )
     ap.add_argument(
         "--formato-salida",

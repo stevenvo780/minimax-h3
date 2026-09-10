@@ -132,6 +132,35 @@ for fichero in fuentes:
     if not (redaccion.RITMO_MIN <= r <= redaccion.RITMO_MAX):
         fallos.append(f"{fichero}: una toma a {r:.2f} pal/s, fuera de banda")
 
+# El formato de una toma tiene que ser DETERMINISTA y respetar los DOS topes
+# medidos. Extrapolar el modelo lineal mas alla de lo medido costo un aborto
+# de sd-cli con SIGABRT tras 20 s.
+for fichero in fuentes:
+    titular, cuerpo, _ = noticias.leer_fichero(os.path.join(dia, fichero))
+    a = noticias.redactar(titular, cuerpo, una_toma=True)
+    b = noticias.redactar(titular, cuerpo, una_toma=True)
+    if a.get("formato") != b.get("formato"):
+        fallos.append(f"{fichero}: el formato no es determinista")
+    f = a.get("formato")
+    if not f:
+        continue
+    # LITERALES a proposito, no redaccion.FRAMES_MEDIDOS: comparar contra la
+    # constante que se quiere vigilar hace que subirla suba tambien la vara y
+    # el check no pueda fallar nunca. Estos dos numeros son observaciones:
+    #   532 f a 352x640 genero bien;  566 f a 336x624 aborto con SIGABRT.
+    # Subirlos exige volver a medir con produccion/sonda-duracion.sh, y
+    # entonces se cambian AQUI a mano, con la medida nueva.
+    if f["frames"] > 532:
+        fallos.append(
+            f"{fichero}: {f['frames']} fotogramas; 566 abortó y 532 es lo mayor "
+            "que se ha visto funcionar. Vuelve a medir antes de subirlo."
+        )
+    mpxf = f["frames"] * f["ancho"] * f["alto"] / 1e6
+    if mpxf > 121:
+        fallos.append(
+            f"{fichero}: {mpxf:.0f} Mpx-fotograma; 137 no cabe y 120 si, medido"
+        )
+
 for f in fallos:
     print("FALLA dialogo-noticias:", f)
 sys.exit(1 if fallos else 0)
