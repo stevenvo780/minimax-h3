@@ -1,0 +1,127 @@
+[
+  {
+    "nombre": "01-gpt-4o",
+    "tema": "GPT-4o",
+    "fecha": "13 mayo 2024",
+    "fuente": "OpenAI",
+    "url": "https://openai.com/index/hello-gpt-4o/",
+    "color": "verde lima",
+    "visual": "una cinta escultórica que une una onda de voz, un ojo abstracto y letras, acabado editorial tridimensional",
+    "diapositivas": [
+      {
+        "titulo": "GPT-4o: voz, imagen y texto",
+        "texto": "OpenAI presentó un modelo que combinaba varias formas de entender e interactuar."
+      },
+      {
+        "titulo": "Una conversación más natural",
+        "texto": "El anuncio mostró capacidades para trabajar con audio, imágenes y texto dentro de un mismo modelo."
+      },
+      {
+        "titulo": "El anuncio fue por etapas",
+        "texto": "El despliegue inicial incluyó texto e imágenes. Otras funciones se anunciaron para después.",
+        "cierre": "Guarda este hito de la IA."
+      }
+    ],
+    "serie": "Archivo 2024"
+  },
+  {
+    "nombre": "02-alphafold-3",
+    "tema": "AlphaFold 3",
+    "fecha": "8 mayo 2024",
+    "fuente": "Google DeepMind",
+    "url": "https://blog.google/innovation-and-ai/products/google-deepmind-isomorphic-alphafold-3-ai-model/",
+    "color": "coral",
+    "visual": "cintas moleculares y esferas de colores entrelazadas, escultura científica conceptual, sin representar datos experimentales",
+    "diapositivas": [
+      {
+        "titulo": "AlphaFold 3 amplió el mapa molecular",
+        "texto": "Google DeepMind e Isomorphic Labs presentaron su nuevo modelo para estudiar moléculas."
+      },
+      {
+        "titulo": "Más allá de las proteínas",
+        "texto": "El modelo predice estructuras e interacciones que incluyen proteínas, ADN, ARN y pequeñas moléculas."
+      },
+      {
+        "titulo": "Una herramienta para investigar",
+        "texto": "El anuncio también presentó AlphaFold Server para investigación no comercial.",
+        "cierre": "Guarda este hito de ciencia e IA."
+      }
+    ],
+    "serie": "Archivo 2024"
+  },
+  {
+    "nombre": "03-llama-31",
+    "tema": "Llama 3.1",
+    "fecha": "23 julio 2024",
+    "fuente": "Meta AI",
+    "url": "https://ai.meta.com/blog/meta-llama-3-1/",
+    "color": "azul cobalto",
+    "visual": "bloques modulares de cristal azul sobre una mesa, una pieza grande y dos pequeñas conectadas, metáfora de modelos descargables",
+    "diapositivas": [
+      {
+        "titulo": "Meta presentó Llama 3.1",
+        "texto": "La familia de modelos incorporó una versión de 405.000 millones de parámetros."
+      },
+      {
+        "titulo": "Modelos para desarrollar",
+        "texto": "Meta ofreció modelos descargables y versiones de 8.000 y 70.000 millones de parámetros."
+      },
+      {
+        "titulo": "La licencia también importa",
+        "texto": "Los modelos se distribuyeron bajo la licencia de Llama. Descargar un modelo no elimina sus condiciones de uso.",
+        "cierre": "Guarda el contexto, no solo la cifra."
+      }
+    ],
+    "serie": "Archivo 2024"
+  },
+  {
+    "nombre": "04-sam-2",
+    "tema": "SAM 2",
+    "fecha": "29 julio 2024",
+    "fuente": "Meta AI",
+    "url": "https://ai.meta.com/research/publications/sam-2-segment-anything-in-images-and-videos/",
+    "color": "violeta",
+    "visual": "tres fotogramas conceptuales con una misma bicicleta recortada en violeta, demostración visual estilizada de seguimiento, sin capturas de software reales",
+    "diapositivas": [
+      {
+        "titulo": "SAM 2 llevó la segmentación al vídeo",
+        "texto": "Meta presentó un modelo para delimitar objetos en imágenes y vídeos."
+      },
+      {
+        "titulo": "Separar un objeto del fondo",
+        "texto": "La segmentación identifica qué píxeles pertenecen al objeto indicado. En vídeo, el modelo trabaja a través de los fotogramas."
+      },
+      {
+        "titulo": "Seguir lo que cambia de posición",
+        "texto": "SAM 2 incorporó una memoria para procesar vídeo y mantener información entre fotogramas.",
+        "cierre": "Guarda este concepto de visión artificial."
+      }
+    ],
+    "serie": "Archivo 2024"
+  },
+  {
+    "nombre": "05-gemini-15",
+    "tema": "Gemini 1.5",
+    "fecha": "15 febrero 2024",
+    "fuente": "Google",
+    "url": "https://blog.google/innovation-and-ai/products/google-gemini-next-generation-model-february-2024/",
+    "color": "amarillo ámbar",
+    "visual": "un archivo escultórico de páginas y fotogramas entrando en un aro de cristal ámbar, metáfora del contexto largo",
+    "diapositivas": [
+      {
+        "titulo": "Gemini 1.5 apostó por el contexto largo",
+        "texto": "Google presentó una nueva generación de su modelo en febrero de 2024."
+      },
+      {
+        "titulo": "Más información en una consulta",
+        "texto": "El anuncio ofreció una vista previa de hasta un millón de tokens para un grupo limitado de desarrolladores y empresas."
+      },
+      {
+        "titulo": "Contexto no significa memoria permanente",
+        "texto": "La ventana de contexto describe cuánta información puede procesar el modelo en una consulta.",
+        "cierre": "Guarda esta clave para entender la IA."
+      }
+    ],
+    "serie": "Archivo 2024"
+  }
+]

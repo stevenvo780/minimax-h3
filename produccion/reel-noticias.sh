@@ -180,19 +180,22 @@ if [ -z "${ANCLA_NEUTRAL:-}" ]; then
   fi
 fi
 
-# ── transicion entre tomas ─────────────────────────────────────────────────
-# El corte duro entre dos tomas del mismo plano se ve muchisimo: medido sobre
-# la primera tanda, el salto de imagen en la union es de 18,5 y 15,8 frente a
-# una mediana de 0,76 dentro de la toma —24 veces un fotograma normal— y son
-# los dos mayores saltos de todo el video. Dos causas: no hay transicion, y la
-# luminancia deriva hasta 14 puntos DENTRO de cada toma, asi que igualar
-# medianas de toma no quita el escalon en la frontera.
+# ── el corte entre tomas ───────────────────────────────────────────────────
+# CORTE, no fundido. Se probo el fundido y sale peor: superpone dos caras con
+# la boca en posiciones distintas y deja un fantasma de seis fotogramas que
+# parece un fallo de codificacion. Bajaba la metrica de salto de imagen de 24x
+# la mediana a 6x, pero esa metrica no mide lo que se ve.
 #
-# 0,25 s lo baja a 8x. No hay fantasma al mezclar porque el anclaje mantiene
-# el encuadre: entre el ultimo fotograma de una toma y el primero de la
-# siguiente la cara se mueve 2 px y cambia de tamaño un 0,6%.
-export TRANSICION=${TRANSICION:-fundido}
-export DURACION_TRANSICION=${DURACION_TRANSICION:-0.25}
+# El problema de fondo es que ninguna toma tiene cola muda: la presentadora
+# habla hasta el ultimo fotograma porque el modelo estira la locucion hasta
+# llenar la toma que se le pide. Con la boca abierta a ambos lados, ni el
+# corte ni el fundido pueden ser invisibles.
+#
+# Lo que si funciona es que el corte PAREZCA intencionado: PUNCH_ALTERNO
+# cierra el encuadre de las tomas pares un 9% y cada union pasa a ser un
+# cambio de tamaño claro, que es el lenguaje normal de un reel.
+export TRANSICION=${TRANSICION:-corte}
+export PUNCH_ALTERNO=${PUNCH_ALTERNO:-1.09}
 
 # VALIDAR atraviesa el runner real. No se llama a sd-cli.
 if [ "${VALIDAR:-0}" = 1 ]; then

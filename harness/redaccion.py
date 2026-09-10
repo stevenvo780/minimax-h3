@@ -269,6 +269,66 @@ def acortar(frase: str, tope: int, minimo: int) -> str | None:
     return _cerrar(" ".join(ws[:mejor])) if mejor else None
 
 
+# Longitud minima de una cadena de palabras repetida para considerarla una
+# reiteracion literal. Con 5 se caza "al menos cinco personas murieron", que
+# salia en la toma 1 y otra vez en la toma 2 del reel del avion de Miami; con 4
+# se cazaria tambien "de inmigrantes en Ceuta", que en la pieza de Ceuta es
+# inevitable porque es el sujeto de la noticia.
+REPETICION_LITERAL = 5
+
+# Nexos por los que se puede cortar el arranque repetido de una frase.
+_NEXOS = ("y", "e", "pero", "aunque", "mientras", "ademas")
+
+
+def _fichas(texto: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", _sin_tildes(texto))
+
+
+def prefijo_repetido(unidad: str, dichas_fichas: list[str], minimo: int) -> int:
+    """Cuantas palabras del PRINCIPIO de `unidad` ya se han dicho seguidas.
+
+    Devuelve 0 si no hay una cadena repetida bastante larga. Solo mira el
+    principio: repetir al arrancar es lo que se oye como tartamudeo, y es
+    ademas lo que se puede quitar dejando una frase que sigue en pie.
+    """
+    fichas = _fichas(unidad)
+    if len(fichas) < minimo:
+        return 0
+    n = len(dichas_fichas)
+    mejor = 0
+    for largo in range(min(len(fichas), n), minimo - 1, -1):
+        aguja = fichas[:largo]
+        for i in range(n - largo + 1):
+            if dichas_fichas[i:i + largo] == aguja:
+                return largo
+    return mejor
+
+
+def podar_repeticion(unidad: str, largo: int) -> str | None:
+    """Quita las `largo` primeras palabras y lo que quede de nexo.
+
+    "Al menos cinco personas murieron y otras cinco resultaron heridas, tres
+    de ellas de gravedad." queda en "Otras cinco resultaron heridas, tres de
+    ellas de gravedad.", que es exactamente lo que aporta. Sigue siendo texto
+    literal de la fuente: en_fuente() compara en minusculas, asi que poner la
+    inicial en mayuscula no lo convierte en invento.
+    """
+    palabras_unidad = palabras(unidad)
+    if largo >= len(palabras_unidad):
+        return None
+    resto = palabras_unidad[largo:]
+    while resto and _sin_tildes(resto[0]).strip(",;:") in _NEXOS:
+        resto = resto[1:]
+    while resto and resto[0].strip(",;:") == "":
+        resto = resto[1:]
+    if len(resto) < 5:
+        return None
+    texto = " ".join(resto).lstrip(",;: ")
+    if not tiene_verbo(texto):
+        return None
+    return _cerrar(texto[0].upper() + texto[1:])
+
+
 def guionizar(
     titular: str,
     cuerpo: str,
@@ -327,6 +387,7 @@ def guionizar(
         raise ValueError("no hay ninguna frase que quepa en una toma")
 
     dichas: set[str] = set()
+    dichas_fichas: list[str] = []
     tomas: list[str] = []
     frames: list[int] = []
     duracion = 0.0
@@ -364,6 +425,26 @@ def guionizar(
                 "ya dicho al %.0f%%, se salta · %s…" % (repetido * 100, unidad[:55])
             )
             continue
+        # Reiteracion LITERAL, que es distinta del solape de vocabulario de
+        # arriba: una frase puede aportar palabras nuevas de sobra y aun asi
+        # arrancar repitiendo una clausula entera de la toma anterior. Eso se
+        # oye como un tartamudeo y el filtro de conjuntos no lo ve.
+        repetido_literal = prefijo_repetido(unidad, dichas_fichas, REPETICION_LITERAL)
+        if repetido_literal:
+            podada = podar_repeticion(unidad, repetido_literal)
+            if podada is None:
+                avisos.append(
+                    "repite %d palabras seguidas y no queda frase al podar, se salta · %s…"
+                    % (repetido_literal, unidad[:50])
+                )
+                continue
+            avisos.append(
+                "repetia %d palabras seguidas, se poda el arranque · %s…"
+                % (repetido_literal, podada[:50])
+            )
+            unidad = podada
+            carga = contenido(unidad)
+
         peso = len(palabras(unidad))
         if actual and n_actual + peso > tope:
             cerrar_toma()
@@ -372,6 +453,7 @@ def guionizar(
         actual.append(unidad)
         n_actual += peso
         dichas |= carga
+        dichas_fichas.extend(_fichas(unidad))
         # Si ya no cabe nada mas, la toma esta llena: cerrarla aqui evita
         # arrastrar una unidad entera a la siguiente.
         if n_actual >= suelo and n_actual + minimo_corte > tope:

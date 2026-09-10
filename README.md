@@ -3,6 +3,27 @@
 De un titular al MP4 vertical 9:16, con presentadora, diálogo sincronizado y
 subtítulos quemados en la zona que no tapa la UI de TikTok/IG.
 
+También puedes generar **imágenes de noticias con Codex**, desde cualquier
+agente con terminal:
+
+```bash
+python3 harness/imagenes.py --titular "Abre una nueva biblioteca" \
+  --texto "Cuenta con una sala de lectura infantil." --nombre biblioteca
+```
+
+Requiere Codex CLI autenticado con generación de imágenes y `ffmpeg`.
+Usa `--solo-prompt` para preparar sin generar. Consulta el
+[módulo de imágenes](imagenes/README.md) y la [guía para agentes](AGENTS.md).
+
+Para **carruseles de Instagram 1080×1350**, con láminas ordenadas, caption y ZIP:
+
+```bash
+python3 harness/carruseles.py --noticias imagenes/ejemplos-ia.json --indice 0 --generar
+```
+
+Incluye cinco noticias reales de archivo de 2024 como ejemplos; usa `--solo-prompt`
+para revisar antes de generar y `--indice 0` a `4` para elegir la noticia.
+
 El motor es MiniMax-H3 local (`bin/sd-cli`): no se encadena, se **ancla**;
 nativo **416×736** (los mismos píxeles que 736×416, que es lo medido); export a
 **1080×1920**. No inventa la noticia: cada frase que se dice es literalmente un
