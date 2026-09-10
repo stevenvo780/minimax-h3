@@ -14,7 +14,7 @@ n=$(ls -1 "$RAIZ"/*.mp4 2>/dev/null | wc -l)
 [ "$n" -eq 0 ] || { echo "FALLA $nombre: $n video(s) sueltos en la raiz, van a videos/"; fallos=1; }
 
 # 2. Cada cosa en su carpeta
-for d in lib produccion calidad herramientas pruebas videos modelos imagenes; do
+for d in lib produccion calidad herramientas pruebas videos modelos imagenes noticias; do
   [ -d "$RAIZ/$d" ] || { echo "FALLA $nombre: falta $d/"; fallos=1; }
 done
 
@@ -32,7 +32,13 @@ done
 # 5. La raiz no puede volver a crecer sin querer. Las dos entradas nuevas
 # autorizadas son AGENTS.md (guia universal) e imagenes/ (modulo de imagenes).
 n=$(ls -1 "$RAIZ" | wc -l)
-[ "$n" -le 18 ] || { echo "FALLA $nombre: la raiz tiene $n entradas (tope 18). Algo nuevo se dejo suelto."; fallos=1; }
+# El tope existe para que la raiz no vuelva a desmadrarse (llego a 29 entradas
+# con 12 videos sueltos). Subirlo es legitimo cuando se añade una carpeta a
+# proposito, no cuando se cuela algo: 19 desde que la noticia en crudo vive en
+# noticias/, que es la entrada COMPARTIDA por el reel y el carrusel.
+# Dos de las 19 son restos en disco de pipelines retirados que no se versionan
+# (archivo/ y proyecto-minuto/): al borrarlos, esto vuelve a 17.
+[ "$n" -le 19 ] || { echo "FALLA $nombre: la raiz tiene $n entradas (tope 19). Algo nuevo se dejo suelto."; fallos=1; }
 
 [ $fallos -eq 0 ] && echo "ok $nombre (raiz con $n entradas)"
 exit $fallos

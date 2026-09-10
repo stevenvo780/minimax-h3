@@ -16,7 +16,7 @@ for f in harness/noticias.py harness/investigar.py produccion/subtitular.py \
          produccion/guiones/noticias/ejemplo-reel.guion; do
   [ -f "$RAIZ/$f" ] || { echo "FALLA $nombre: falta $f"; exit 1; }
 done
-n_dia=$(ls -1 "$RAIZ"/produccion/noticias/dia/*.txt 2>/dev/null | wc -l)
+n_dia=$(ls -1 "$RAIZ"/noticias/dia/*.txt 2>/dev/null | wc -l)
 [ "$n_dia" -ge 5 ] || { echo "FALLA $nombre: hace falta 5 noticias del dia, hay $n_dia"; exit 1; }
 python3 -c "import ast; ast.parse(open('$RAIZ/harness/noticias.py').read())" \
   || { echo "FALLA $nombre: noticias.py no parsea"; exit 1; }

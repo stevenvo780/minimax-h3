@@ -41,7 +41,7 @@ VALIDAR=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
 SOLO_GUION=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
 produccion/reel-noticias.sh --rss https://ejemplo.tld/rss.xml --nombre corte
 produccion/reel-noticias.sh --tema "avion miami" --nombre corte
-produccion/tanda-noticias-dia.sh          # todo produccion/noticias/dia/, en serie
+produccion/tanda-noticias-dia.sh          # todo noticias/dia/, en serie
 ui/servidor.py                            # http://localhost:8080
 ```
 
@@ -548,7 +548,7 @@ harness/              TEXTO → GUION
 
 produccion/           GUION → VÍDEO
   reel-noticias.sh     EL CAMINO COMPLETO: guion → tomas → subtítulos → 1080×1920
-  tanda-noticias-dia.sh todo produccion/noticias/dia/, en serie, un cerrojo
+  tanda-noticias-dia.sh todo noticias/dia/, en serie, un cerrojo
   producir-anclado.sh  plan + tomas ancladas + reanudación verificada + montaje
   producir.sh          runner anterior, sin anclaje (HABLA|, p*.avi)
   subtitular.py        cues por toma, sin truncar, a la resolución final

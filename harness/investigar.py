@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """De un TEMA a titular+cuerpo investigado. No inventa.
 
-Busca en produccion/noticias/dia/*.txt la noticia cuyo titular, tema y
+Busca en noticias/dia/*.txt la noticia cuyo titular, tema y
 cuerpo mejor cubren las palabras del tema. Escribe el fichero de noticia
 (listo para noticias.py --fichero) y un JSON con url de fuente.
 
@@ -24,7 +24,7 @@ if _HARNESS not in sys.path:
     sys.path.insert(0, _HARNESS)
 import noticias  # noqa: E402
 
-DIA = os.path.join(RAIZ, "produccion", "noticias", "dia")
+DIA = os.path.join(RAIZ, "noticias", "dia")
 STOP = {
     "el", "la", "los", "las", "un", "una", "de", "del", "en", "y", "o", "a",
     "al", "por", "con", "para", "que", "se", "su", "sus", "es", "son",

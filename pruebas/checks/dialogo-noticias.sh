@@ -27,7 +27,7 @@ import redaccion  # noqa: E402
 import noticias  # noqa: E402
 
 fallos = []
-dia = os.path.join(raiz, "produccion", "noticias", "dia")
+dia = os.path.join(raiz, "noticias", "dia")
 fuentes = sorted(f for f in os.listdir(dia) if f.endswith(".txt"))
 if len(fuentes) < 5:
     print(f"FALLA dialogo-noticias: hacen falta 5 noticias del dia, hay {len(fuentes)}")

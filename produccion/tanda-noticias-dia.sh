@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════════════════
-#  TANDA DEL DIA — las noticias de produccion/noticias/dia/ convertidas en
+#  TANDA DEL DIA — las noticias de noticias/dia/ convertidas en
 #  reels, en serie, con un solo cerrojo de GPU.
 #
 #  Antes esto llamaba a producir-anclado.sh DIRECTAMENTE, saltandose los dos
@@ -20,7 +20,7 @@ set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
 exigir_herramientas ffmpeg ffprobe python3 || exit 1
 
-DIA=$MD/produccion/noticias/dia
+DIA=$MD/noticias/dia
 SEG_OBJETIVO=${SEG_OBJETIVO:-32}
 
 if [ $# -gt 0 ]; then

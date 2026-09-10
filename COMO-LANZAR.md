@@ -16,7 +16,7 @@ No inventa: cada frase sale literal del texto que le das.
 ```bash
 VALIDAR=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
 SOLO_GUION=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
-produccion/tanda-noticias-dia.sh    # todo produccion/noticias/dia/, en serie
+produccion/tanda-noticias-dia.sh    # todo noticias/dia/, en serie
 ui/servidor.py                      # titular + cuerpo → el mismo pipeline
 ```
 
