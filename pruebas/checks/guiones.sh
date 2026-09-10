@@ -1,5 +1,5 @@
 #!/bin/bash
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 nombre="guiones"
 exec 0</dev/null
 
@@ -31,7 +31,8 @@ if compgen -G "$RAIZ/produccion/obra/chk-no-generar/*.avi" >/dev/null; then
   echo "FALLA $nombre: VALIDAR=1 genero video (deberia salir antes de tocar la GPU)"
   fallos=1
 fi
-rm -rf "$RAIZ/produccion/obra/chk-no-generar" 2>/dev/null
+rm -rf "$RAIZ/produccion/obra/chk-no-generar" "$RAIZ/produccion/obra/validacion" \
+       "$RAIZ/produccion/obra/campos" 2>/dev/null
 
 # Un tipo inexistente tiene que rebotar, no colarse hasta la GPU.
 printf '@TIPO noexiste\n@ESCENA E.\n@AMBIENTE A.\n@MUSICA M.\nTOMA|Algo.|inicio|\n' > "$T/malo.guion"

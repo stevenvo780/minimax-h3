@@ -1,7 +1,7 @@
 #!/bin/bash
 set -u
 NOMBRE="cerrojo-generacion"
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 
 fallar() { echo "FALLA $NOMBRE: $1"; exit 1; }
 command -v flock >/dev/null 2>&1 || fallar "falta flock"

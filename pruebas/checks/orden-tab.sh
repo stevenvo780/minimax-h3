@@ -2,7 +2,7 @@
 NOMBRE_CHECK="orden-tab"
 falla() { echo "FALLA $NOMBRE_CHECK: $1"; exit 1; }
 
-RAIZ=${RAIZ:?falta RAIZ}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 [ -f "$RAIZ/produccion/producir.sh" ] || falla "no se encuentra $RAIZ/produccion/producir.sh"
 
 SANDBOX=$(mktemp -d /tmp/orden-tab.XXXXXX) || falla "no se pudo crear sandbox en /tmp"

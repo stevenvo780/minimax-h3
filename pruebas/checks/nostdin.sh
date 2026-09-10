@@ -1,5 +1,5 @@
 #!/bin/bash
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 
 nombre="nostdin"
 # RAIZ = arbol bajo prueba. REPO = repo git de donde se lee el control
@@ -92,9 +92,9 @@ PV_SRC=$(extrae_fn "$RAIZ/produccion/preview.sh" publicar)
 eval "$PV_SRC" || { echo "FALLA $nombre: publicar() de preview.sh no es bash valido"; exit 1; }
 
 MD=$CHK_TMP/md; OBRA=$CHK_TMP/obra; V=$CHK_TMP/v; G=$CHK_TMP/preview.guion
-mkdir -p "$MD/proyecto-minuto" "$OBRA" "$V"
+mkdir -p "$MD/produccion/apoyos" "$OBRA" "$V"
 : > "$OBRA/p01.avi"                        # un plano nuevo -> publicar() no sale antes de tiempo
-for k in 1 2 3 4 5; do : > "$MD/proyecto-minuto/b$k.avi"; printf 'BROLL|b%s.avi|\n' "$k" >> "$G"; done
+for k in 1 2 3 4 5; do : > "$MD/produccion/apoyos/b$k.avi"; printf 'BROLL|b%s.avi|\n' "$k" >> "$G"; done
 publicar </dev/null >"$CHK_TMP/preview.log" 2>&1
 N_PV=$(grep -c "^file " "$V/.lista.txt" 2>/dev/null); N_PV=${N_PV:-0}
 

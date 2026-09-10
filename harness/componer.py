@@ -32,7 +32,9 @@ CATS = os.path.join(RAIZ, "harness", "categorias")
 PALABRAS_POR_SEG = 2.6
 # Tipos que consumen el TEXTO (dialogo). El resto del ritmo se rellena con
 # planos de apoyo y no lleva narracion: el modelo solo genera voz con una cara.
-TIPOS_VOZ = {"habla", "informativo"}
+# Vive en redaccion.py, que es quien decide que se dice y en cuantas tomas.
+sys.path.insert(0, os.path.join(RAIZ, "harness"))
+from redaccion import FRAMES_APOYO, TIPOS_VOZ  # noqa: E402
 
 def cargar(nombre):
     f = os.path.join(CATS, nombre + ".json")
@@ -67,8 +69,19 @@ def agrupar(fs, seg_por_toma):
     if actual: tomas.append(" ".join(actual))
     return tomas
 
-def componer(cat, texto, seg_por_toma, ritmo=None):
-    bloques = agrupar(frases(texto), seg_por_toma)
+def repartir(cat, bloques, ritmo=None, frames=None):
+    """Reparte BLOQUES YA MEDIDOS entre los planos que pide el ritmo.
+
+    Separado de componer() porque las noticias llegan con las tomas ya
+    decididas por harness/redaccion.py: volver a partirlas aqui era
+    justamente el bug que metia 35 palabras en una toma de 8 segundos.
+
+    `frames` opcional trae la duracion que redaccion.py calculo para cada
+    bloque de texto. Un plano de apoyo no lleva voz, asi que se queda sin
+    duracion propia y el runner le aplica la de la linea de ordenes.
+    """
+    bloques = list(bloques)
+    frames = list(frames) if frames else []
     ritmo = list(ritmo) if ritmo else list(cat.get("ritmo") or ["habla"])
     apoyos = list(cat.get("apoyos") or [])
     filas, i_bloque, i_apoyo, i_ritmo = [], 0, 0, 0
@@ -77,11 +90,17 @@ def componer(cat, texto, seg_por_toma, ritmo=None):
     while i_bloque < len(bloques):
         tipo = ritmo[i_ritmo % len(ritmo)]; i_ritmo += 1
         if tipo in TIPOS_VOZ:
-            filas.append((bloques[i_bloque], tipo)); i_bloque += 1
+            f = frames[i_bloque] if i_bloque < len(frames) else None
+            filas.append((bloques[i_bloque], tipo, f)); i_bloque += 1
         elif apoyos:
-            filas.append((apoyos[i_apoyo % len(apoyos)], tipo)); i_apoyo += 1
+            # El apoyo dura menos: no lleva voz que llenar.
+            filas.append((apoyos[i_apoyo % len(apoyos)], tipo, FRAMES_APOYO)); i_apoyo += 1
         # sin apoyos definidos, un ritmo sin voz se salta en vez de inventar
     return filas
+
+def componer(cat, texto, seg_por_toma, ritmo=None):
+    """Camino clasico: un churro de texto que aqui se parte en tomas."""
+    return repartir(cat, agrupar(frases(texto), seg_por_toma), ritmo=ritmo)
 
 def escribir(cat, filas, salida, texto_original):
     cab = textwrap.dedent(f"""\
@@ -101,9 +120,20 @@ def escribir(cat, filas, salida, texto_original):
               f"@AMBIENTE {cat['ambiente']}",
               f"@MUSICA {cat['musica']}",
               ""]
-    for i, (cont, tipo) in enumerate(filas):
-        modo = "inicio" if i == 0 else "ancla"
-        lineas.append(f"TOMA|{cont}|{modo}|{tipo}")
+    for i, fila in enumerate(filas):
+        cont, tipo = fila[0], fila[1]
+        f = fila[2] if len(fila) > 2 else None
+        # Un plano de apoyo (manos, calle, portatil) NO se ancla al rostro:
+        # anclarlo le mete la cara de la presentadora en un plano que su propio
+        # prompt describe sin nadie, y encima paga el sobrecoste de VRAM del
+        # camino anclado para estropear la imagen.
+        modo = "inicio" if i == 0 or tipo not in TIPOS_VOZ else "ancla"
+        # 'frames=N' es un campo CON NOMBRE: los campos 5 y 6 ya eran escena y
+        # ambiente propias. Es opcional, y un guion de cuatro campos escrito a
+        # mano sigue valiendo exactamente igual.
+        lineas.append(
+            f"TOMA|{cont}|{modo}|{tipo}" + (f"|frames={f}" if f else "")
+        )
     os.makedirs(os.path.dirname(os.path.abspath(salida)) or ".", exist_ok=True)
     open(salida, "w", encoding="utf-8").write("\n".join(lineas) + "\n")
     return len(filas)
@@ -113,7 +143,9 @@ if __name__ == "__main__":
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("categoria"); ap.add_argument("salida")
     ap.add_argument("--texto"); ap.add_argument("--fichero")
-    ap.add_argument("--seg-por-toma", type=float, default=14.4)
+    # 14,4 s era la toma del retrato de filosofia (345 f). El producto de hoy
+    # son tomas de 8 s (192 f); quien componga otra cosa que lo diga.
+    ap.add_argument("--seg-por-toma", type=float, default=8.0)
     ap.add_argument(
         "--ritmo",
         help="ritmo de tipos separado por comas; pisa el de la categoria",
@@ -130,7 +162,12 @@ if __name__ == "__main__":
     filas = componer(cat, texto, a.seg_por_toma, ritmo=ritmo)
     if not filas: sys.exit("el texto no produjo ninguna toma")
     n = escribir(cat, filas, a.salida, texto)
-    hab = sum(1 for _, t in filas if t == "habla")
+    # Cuenta TIPOS_VOZ, no solo 'habla': con un guion de noticias este contador
+    # decia "0 habladas, 4 de apoyo" para un reel entero de presentadora.
+    hab = sum(1 for fila in filas if fila[1] in TIPOS_VOZ)
     print(f"  {a.salida}")
-    print(f"  {n} tomas ({hab} habladas, {n-hab} de apoyo) · "
-          f"{n*a.seg_por_toma:.0f} s a {a.seg_por_toma} s por toma")
+    segundos = sum(
+        (fila[2] / 24 if len(fila) > 2 and fila[2] else a.seg_por_toma)
+        for fila in filas
+    )
+    print(f"  {n} tomas ({hab} habladas, {n-hab} de apoyo) · {segundos:.1f} s")

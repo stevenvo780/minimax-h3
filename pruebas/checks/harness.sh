@@ -1,5 +1,5 @@
 #!/bin/bash
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 nombre="harness"
 exec 0</dev/null
 
@@ -8,13 +8,13 @@ exec 0</dev/null
 # gastar GPU. Este check lo fija sin generar nada.
 
 fallos=0
-for f in harness/componer.py harness/validar.py; do
+for f in harness/componer.py harness/redaccion.py harness/noticias.py; do
   [ -f "$RAIZ/$f" ] || { echo "FALLA $nombre: falta $f"; exit 1; }
   python3 -c "import ast;ast.parse(open('$RAIZ/$f').read())" 2>/dev/null || {
     echo "FALLA $nombre: $f no parsea"; fallos=1; }
 done
 n=$(ls -1 "$RAIZ"/harness/categorias/*.json 2>/dev/null | wc -l)
-[ "$n" -ge 3 ] || { echo "FALLA $nombre: solo $n categorias, se esperaban 3 o mas"; fallos=1; }
+[ "$n" -ge 1 ] || { echo "FALLA $nombre: no hay ninguna categoria"; fallos=1; }
 
 # Cada categoria tiene que traer todos sus campos y un ritmo no vacio.
 for c in "$RAIZ"/harness/categorias/*.json; do
@@ -55,5 +55,6 @@ if python3 "$RAIZ/harness/componer.py" noexiste "$T/x.guion" --texto "Hola." >/d
   echo "FALLA $nombre: una categoria inexistente salio con 0"; fallos=1
 fi
 
+rm -rf "$RAIZ/produccion/obra/chk" 2>/dev/null
 [ $fallos -eq 0 ] && echo "ok $nombre ($n categorias, todas componen y validan)"
 exit $fallos

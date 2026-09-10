@@ -1,10 +1,10 @@
 #!/bin/bash
-RAIZ="${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}"
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 set -u
 nombre="params-defecto"
 fallo() { echo "FALLA $nombre: $1"; exit 1; }
 
-RAIZ="${RAIZ:?falta RAIZ}"
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 
 WD=$(mktemp -d /tmp/params-defecto-check.XXXXXX) || fallo "no se pudo crear tmpdir"
 trap 'rm -rf "$WD"' EXIT
@@ -13,12 +13,11 @@ COMUN="$RAIZ/lib/comun.sh"
 [ -f "$COMUN" ] || fallo "no existe $COMUN (params_defecto vive ahi: sin el, cada script vuelve a fijar W/H/FRAMES/STEPS por su cuenta)"
 
 # script -> "W H FRAMES STEPS" propios (sin entorno)
-SCRIPTS="herramientas/h3.sh herramientas/generar-1080p.sh herramientas/encadenar.sh produccion/producir.sh proyecto-minuto/generar.sh"
+SCRIPTS="herramientas/h3.sh herramientas/generar-1080p.sh produccion/producir.sh"
 esperado_de() {
   case "$1" in
     "herramientas/h3.sh")           echo "864 480 56 20" ;;
     "herramientas/generar-1080p.sh") echo "512 288 56 20" ;;
-    "herramientas/encadenar.sh")    echo "1376 768 124 20" ;;
     "produccion/producir.sh")     echo "1376 768 107 20" ;;
     "proyecto-minuto/generar.sh") echo "1376 768 107 20" ;;
     *) return 1 ;;

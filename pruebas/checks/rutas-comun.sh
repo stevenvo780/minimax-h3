@@ -1,5 +1,5 @@
 #!/bin/bash
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 set -u
 NOMBRE="rutas-comun"
 VIEJO_MD="/home/stev/Modelos-IA/minimax-h3"

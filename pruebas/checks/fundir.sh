@@ -2,7 +2,7 @@
 set -u
 
 NOMBRE="fundir"
-RAIZ="${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}"
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 FALLOS=0
 falla() { echo "FALLA $NOMBRE: $*"; FALLOS=$((FALLOS+1)); }
 

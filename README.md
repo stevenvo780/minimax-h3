@@ -1,12 +1,12 @@
 # NewsLeters — reels de noticias para TikTok e Instagram
 
 De un titular al MP4 vertical 9:16, con presentadora, diálogo sincronizado y
-subtítulos en la zona que no tapa la UI de TikTok/IG.
+subtítulos quemados en la zona que no tapa la UI de TikTok/IG.
 
-El motor sigue siendo MiniMax-H3 local (`bin/sd-cli`), el mismo que ya estaba
-medido: no se encadena, se **ancla**; nativo **416×736** (los mismos píxeles que
-736×416); export a **1080×1920**. No inventa la noticia: recorta el texto que le
-das al presupuesto de ~20 s.
+El motor es MiniMax-H3 local (`bin/sd-cli`): no se encadena, se **ancla**;
+nativo **416×736** (los mismos píxeles que 736×416, que es lo medido); export a
+**1080×1920**. No inventa la noticia: cada frase que se dice es literalmente un
+trozo del texto que le das.
 
 ```bash
 produccion/reel-noticias.sh \
@@ -20,25 +20,60 @@ VALIDAR=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
 SOLO_GUION=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
 produccion/reel-noticias.sh --rss https://ejemplo.tld/rss.xml --nombre corte
 produccion/reel-noticias.sh --tema "avion miami" --nombre corte
-produccion/tanda-noticias-dia.sh          # las cinco noticias del dia, en serie
+produccion/tanda-noticias-dia.sh          # todo produccion/noticias/dia/, en serie
 ui/servidor.py                            # http://localhost:8080
 ```
 
-La UI pega titular + cuerpo y lanza el mismo pipeline. El RSS **no** se ofrece
-en la UI (sería SSRF). Un plano de apoyo en este runner dura lo mismo que una
-toma hablada y el modelo no hace voz en off: el ritmo por defecto es solo
-`informativo`. `BROLL=1` intercalas apoyos y fuerza tomas de 4,5 s.
+La UI pega titular + cuerpo y lanza **el mismo** `reel-noticias.sh`. El RSS
+**no** se ofrece en la UI (sería SSRF). `BROLL=1` intercala planos de apoyo,
+que no llevan voz y por eso duran menos (107 f = 4,5 s).
 
 Lo que sale, en `videos/entregas/`:
 
 ```
-corte-vivienda-416x736-16s-….mp4                 el montaje nativo
-corte-vivienda-416x736-16s-…-subs.mp4            con subtítulos quemados
-corte-vivienda-416x736-16s-…-reel-1080x1920.mp4  listo para el feed
+corte-vivienda-416x736-27s-….mp4                 el montaje interno
+corte-vivienda-416x736-27s-…-reel-1080x1920.mp4  el reel: subtitulado y a -14 LUFS
 ```
 
-El resto de este README es el motor: cómo se genera, se ancla, se mide y se
-reanuda. Sigue haciendo falta para no romper una tanda de horas.
+**El producto es el `-reel-`.** El otro fichero es el montaje nativo, sin
+subtítulos y a −19 LUFS: sirve para revisar, no para publicar.
+`produccion/sondear-dia.sh` comprueba exactamente eso antes de dar una tanda
+por buena.
+
+## Cómo se escribe lo que dice la presentadora
+
+Esta es la parte que más se nota y la que menos se veía. Vive en
+`harness/redaccion.py` y tiene **una sola regla dura**: cada frase que se dice
+es un trozo literal del titular o del cuerpo. No se parafrasea, no se resume,
+no se añade. `produccion/sondear-dia.sh` lo verifica frase a frase contra la
+fuente antes de dar la tanda por buena.
+
+Dentro de esa regla, el reparto hace cuatro cosas:
+
+| | |
+|---|---|
+| **Mide** | 2,6 palabras/s. Cada toma dura **lo que su texto tarda en decirse**, redondeado a la escalera 17k+5 que acepta el modelo (73, 90, 107 … 192 f). Un titular de ocho palabras ocupa 90 f (3,8 s), no 192. |
+| **No corta frases** | Una toma nunca empieza a media frase. Si una frase no cabe, se le quita la **cola** cortando solo donde queda una oración completa —y se comprueba que el trozo tiene verbo—; si no hay corte limpio, la frase se descarta con un aviso. |
+| **No repite** | La entradilla de un teletipo reformula el titular por convención periodística. Se compara por raíz aproximada y se salta lo que ya se ha dicho, para no gastar media pieza contando un hecho dos veces. |
+| **Avisa** | Si una toma queda fuera de la banda de 1,6–3,0 palabras/s, se dice por pantalla antes de tocar la GPU. |
+
+Los avisos importan: `frase descartada`, `ya dicho al 67%` y `toma 2 a 3,4
+pal/s` son la diferencia entre un reel decente y uno que hay que tirar.
+
+### Lo que NO hace, y hay que saberlo
+
+No reescribe a lenguaje hablado. Un titular está escrito para leerse, no para
+decirse, y suena a titular. Eso es el precio de la regla dura de arriba: la
+única forma de arreglarlo sin romperla sería una reescritura verificada contra
+la fuente, y hoy no existe.
+
+### Historia, porque explica constantes que siguen ahí
+
+El pipeline nació para vídeos de **filosofía**: un hombre de unos 55 años con
+barba, retrato cerrado sobre fondo negro, tomas de 14,4 s, voz calmada, formato
+apaisado 736×416. Las 2,6 palabras/s se midieron ahí. Casi todo lo demás de esa
+etapa se ha quitado; si aparece un número que solo tiene sentido para un
+retrato apaisado, es un resto y hay que tratarlo como un defecto.
 
 ## Requisitos
 
@@ -64,7 +99,7 @@ ubicación. Se puede forzar con `MD=/otra/ruta` y el destino con `DEST=/otra/car
 
 ```bash
 produccion/producir-anclado.sh \
-  produccion/guiones/existencialismo.guion existencialismo 345 736 416 20
+  produccion/guiones/noticias/generados/corte.guion corte 192 416 736 20
 ```
 
 El runner compila primero un `plan.json` canónico, genera cada toma y ensambla en `$DEST`.
@@ -85,7 +120,7 @@ Seguimiento durable, incluso si la interfaz se reinicia:
 
 ```bash
 ui/servidor.py                            # http://localhost:8080
-cat produccion/obra/existencialismo/estado.json
+cat produccion/obra/corte/estado.json
 ```
 
 La UI sólo escucha en `127.0.0.1`, muestra esperas/generación/montaje y sirve exclusivamente
@@ -139,17 +174,18 @@ y nada más.
 | `paisaje` | espacio sin personas | atmósfera, luz, establecimiento |
 | `camara` | el movimiento **es** el sujeto | el contenido describe la trayectoria del dolly |
 
-Los seis originales se generaron y se midieron (107 fotogramas, 736x416, 20 pasos): **ninguno produjo
-manchas de color**. `informativo` es el mismo retrato hablado con otra entrega, en 9:16.
-Para producir los cuatro más distintos entre sí de una tanda:
+Los seis originales se generaron y se midieron **en la etapa de filosofía**
+(107 fotogramas, 736×416 apaisado, 20 pasos): ninguno produjo manchas de color.
+`informativo` es el mismo retrato hablado con otra entrega, en 9:16. En el reel
+sólo se usan `informativo` y, con `BROLL=1`, `detalle`.
 
-```bash
-produccion/formatos.sh                       # detalle, camara, accion, paisaje
-FORMATOS="muda paisaje" produccion/formatos.sh   # sólo algunos
-```
-
-Es resumible: salta el formato que ya tenga su `.mp4`. Van **en serie a propósito** — dos
-generaciones concurrentes se mataron entre ellas por OOM.
+Sólo `habla` e `informativo` llevan voz. Esa lista vive en **un sitio por
+lenguaje** y hay que mantenerla igual en los dos: `PROMPT_TIPOS_VOZ` en
+`lib/prompt.sh` y `TIPOS_VOZ` en `harness/redaccion.py`. Estuvo copiada en
+cinco sitios y faltaba justo donde más dolía: el runner preguntaba
+`= habla` a secas, así que en un reel —cuyas tomas son `informativo`— el
+selector de ancla neutral y la medida de cobertura de voz **no se ejecutaban
+nunca**.
 
 #### Resultado medido de los cuatro formatos (56 s, 4 tomas ancladas, 736x416)
 
@@ -243,23 +279,23 @@ toma MJPEG+PCM determinista con grano luma sutil, duración/FPS exactos y manifi
 | Script | Para qué |
 |---|---|
 | `herramientas/h3.sh "prompt"` | un clip suelto, rápido, para probar un prompt |
-| `herramientas/encadenar.sh "prompt"` | vídeo largo encadenando N segmentos a calidad nativa |
 | `herramientas/generar-1080p.sh "prompt"` | genera pequeño y escala ×4 repartiendo frames entre las dos GPU |
-| `proyecto-minuto/` | montaje de 14 planos independientes + escalado a 1080p en paralelo |
+| `produccion/escalar.sh <video>` | RealESRGAN ×4 y remonte a 1080p. **No está en el camino del reel**: el export escala con ffmpeg |
 
 ## Medir la calidad, no mirarla a ojo
 
 ```bash
 calidad/evaluar2.py <video.mp4> [--seg <segundos por plano>]
-calidad/deriva.sh <nombre-obra>
 ```
 
 `evaluar2.py` es **anti-trampa**: toma el primer plano como referencia y penaliza desviarse
-en *cualquier* dirección. Nació al detectar que `evaluar.py` (el primero) premiaba inyectar
-grano sintético. Usa `evaluar2.py`; `evaluar.py` se conserva como referencia histórica.
+en *cualquier* dirección. Nació al detectar que el evaluador anterior premiaba inyectar
+grano sintético.
 
-`deriva.sh` diagnostica una cadena: PSNR de cada unión (>36 dB imperceptible, <30 salto
-visible) y deriva de la firma de color respecto a `p01` (<15 estable, >40 la escena cambió).
+**Aviso de calibración**: `evaluar2.py` recorta la zona de la cara donde estaba
+en el retrato apaisado. En 9:16 esa ventana cae sobre cuello y camisa, así que
+sus números no significan lo mismo para un reel. Sirve para comparar dos tomas
+del mismo formato, no para dar un reel por bueno.
 
 Antes de entregar una obra completa, el gate recomendado es V2 y debe recibir tanto el plan
 como el montaje real:
@@ -411,8 +447,9 @@ con +21,1 % de exceso, mirando el recorte del ojo y la barba:
 | 1,47 | −0,1 % | clava el numero, destruye la imagen |
 
 Igualar la energia de borde contra *otra imagen distinta* no deshace el realce:
-se lleva el detalle legitimo. `lib/enlace.sh` tiene un tope duro en 0,35 y se
-niega a pasar de ahi. Es justo la trampa por la que existe `evaluar2.py`.
+se lleva el detalle legitimo. Es justo la trampa por la que existe
+`evaluar2.py`. (El módulo `lib/enlace.sh` que aplicaba ese tope se retiró con
+la maquinaria de encadenado: el pipeline ancla, no encadena.)
 
 ### Limite conocido del medidor
 
@@ -439,7 +476,9 @@ exigencia de una version de glibc mas nueva que la del sistema. De glibc 2.43
 solo necesitaba `atan2f` y `sqrtf`, que existen desde hace decadas.
 
 Ojo con la RAM: los modelos completos piden ~42 GB. Con el modelo **podado**
-bajan a 33 GB y entran en un contenedor de 24 GB + 24 GB de swap.
+bajan a 33 GB. (Esa cuenta era contra el contenedor de 24 GB + 24 GB de
+swap; desde el 2026-08-30 el cgroup son 125 GB y lo que limita es la VRAM.
+Ver la nota CADUCADO en COMO-LANZAR.md.)
 
 ## Notas de operación
 
@@ -457,8 +496,14 @@ bajan a 33 GB y entran en un contenedor de 24 GB + 24 GB de swap.
 ## Estructura
 
 Reordenado el 2026-08-29: la raíz había llegado a 29 entradas, con 12 vídeos sueltos mezclados
-con scripts, documentación y los 51 GB de pesos, y las herramientas de medida repartidas entre
-`produccion/` y la raíz. Ahora son 13 entradas, y `pruebas/checks/estructura.sh` lo mantiene así.
+con scripts, documentación y los pesos, y las herramientas de medida repartidas entre
+`produccion/` y la raíz. `pruebas/checks/estructura.sh` lo mantiene así: sin vídeos
+sueltos en la raíz, los pesos agrupados en `modelos/` y la medida sólo en `calidad/`.
+
+Las tres capas son **harness/** (texto → guion), **produccion/** (guion → vídeo)
+y **calidad/** (vídeo → informe). La frontera no es perfecta —`seleccionar-ancla.py`
+vive en `calidad/` y corre en caliente durante la generación— pero es la que
+explica dónde buscar cada cosa.
 
 ```
 README.md · COMO-LANZAR.md
@@ -468,61 +513,62 @@ lib/                  lo compartido — el único sitio con rutas
   estado_obra.py      estado atómico, SHA de receta, huellas y gate de vídeo
   compat.sh           hace ejecutable sd-cli en este contenedor
   vram.sh             presupuesto de VRAM adaptativo
-  prompt.sh           tipos de plano (habla, informativo, muda, accion, detalle, paisaje, camara)
-  enlace.sh           limpieza de enlaces (con tope duro)
+  prompt.sh           tipos de plano y cuáles llevan voz (PROMPT_TIPOS_VOZ)
 
-produccion/           GENERAR
+harness/              TEXTO → GUION
+  redaccion.py        noticia → tomas decibles: mide, no corta frases, no repite
+  noticias.py         lee la noticia (fichero, RSS o argumentos) y escribe el .guion
+  investigar.py       de un TEMA a la noticia del catálogo del día
+  componer.py         tomas + categoría → .guion, con el ritmo de planos
+  planificar.py       compila .guion a un plan JSON canónico y reproducible
+  candidatos.py       verifica, selecciona y prepara candidatos por contenido
+  estabilizar_plano.py motor reproducible del estabilizador de B-roll
+  categorias/         noticias.json — el mundo audiovisual del reel
+
+produccion/           GUION → VÍDEO
+  reel-noticias.sh     EL CAMINO COMPLETO: guion → tomas → subtítulos → 1080×1920
+  tanda-noticias-dia.sh todo produccion/noticias/dia/, en serie, un cerrojo
   producir-anclado.sh  plan + tomas ancladas + reanudación verificada + montaje
+  producir.sh          runner anterior, sin anclaje (HABLA|, p*.avi)
+  subtitular.py        cues por toma, sin truncar, a la resolución final
+  exportar-reel.sh     9:16, yuv420p, +faststart, −14 LUFS, y quema el rótulo
+  sondear-dia.sh       ACEPTACIÓN: que lo entregado sea un reel, no el montaje
   generar-candidato.sh variantes inmutables sin modificar la obra base
   estabilizar-plano.sh B-roll estático determinista con manifiesto
-  formatos.sh          los cuatro formatos en serie, resumible
-  alargar-formatos.sh  de 29 s a ~58 s sin regenerar lo ya hecho
+  escalar.sh           RealESRGAN x4 y remonte a 1080p (no está en el reel)
   lazo.sh              itera semillas hasta una meta
-  guiones/             los .guion, con el porqué en la cabecera
+  noticias/dia/        el catálogo de noticias del día, con FUENTE
+  apoyos/              planos de apoyo ya generados, para BROLL|
+  guiones/             el ejemplo versionado; los generados no se versionan
   obra/<nombre>/       tomas, anclas y montaje (resumible)
 
-harness/
-  planificar.py        compila .guion a un plan JSON canónico y reproducible
-  componer.py          texto + categoría → .guion
-  noticias.py          recorta una noticia al presupuesto del reel (sin inventar)
-  candidatos.py        verifica, selecciona y prepara candidatos por contenido
-  estabilizar_plano.py motor reproducible del estabilizador de B-roll
-  categorias/          filosofia, documental, noticias (9:16)
+ui/servidor.py         cockpit local: lanza reel-noticias.sh, estado, MP4 confinados
 
-produccion/reel-noticias.sh   titular → guion → MiniMax → subtítulos → 1080×1920
-produccion/subtitular.py      quema captions en zona segura TikTok/IG
-produccion/exportar-reel.sh   9:16, yuv420p, +faststart, −14 LUFS
-
-ui/servidor.py         cockpit local: reel de noticias, estado durable, MP4 confinados
-
-calidad/              MEDIR — todo junto, ya no repartido
+calidad/              VÍDEO → INFORME
   auditar.py           obra · plano · contacto · audio · habla · fondo ·
                        manchas · estabilidad
-  evaluar.py           criterio original del autor (intacto)
-  evaluar2.py          idem — OJO: sólo vale para retrato hablado
+  evaluar2.py          librería de medida — OJO: pensada para retrato hablado
   comparar-formatos.sh tabla comparable ENTRE formatos distintos
-  medir-barba.py       detalle fino en una zona concreta
-  revisar.py           laminas para MIRAR: lo semantico no lo ve
-                       ninguna metrica (manos, identidad, continuidad)
-  deriva.sh            deriva a lo largo de una cadena
+  revisar.py           láminas para MIRAR: lo semántico no lo ve
+                       ninguna métrica (manos, identidad, continuidad)
   seleccionar-ancla.py elige un frame neutral con YuNet y evidencia JSON
   preparar-modelos-evaluacion.sh instala modelos locales con SHA fijado
-  v2/                  gate fail-closed de obra, montaje, identidad, ASR y audio
+  v2/                  gate de obra, montaje, identidad, ASR y audio.
+                       NO está enchufado al reel, y su ASR necesita
+                       ffmpeg ≥ 8.0 con el filtro whisper
 
 herramientas/         piezas sueltas de un solo uso
   guardian-vram.sh     corta la generación si baja el margen de GPU del usuario
   h3.sh                un clip para probar un prompt
-  encadenar.sh · generar-1080p.sh · ordenar-videos.sh
+  generar-1080p.sh · ordenar-videos.sh
 
 videos/               LO QUE SE ENTREGA
   entregas/           piezas buenas + sidecar verificable (DEST por defecto)
-  experimentos/       clips de experimentos (barbas, resoluciones)
 
-modelos/              los 51 GB de pesos, agrupados (fuera de git)
-  diffusion_models/ · text_encoders/ · vae/ · upscalers/
+modelos/              los pesos, agrupados (fuera de git)
+  diffusion_models/ · text_encoders/ · vae/ · upscalers/ · evaluacion/
 
 pruebas/humo.sh       punto de entrada único · descubre checks/ automáticamente
-medidas/              mediciones de VRAM (versionadas)
-archivo/              material apartado, no borrado
-proyecto-minuto/      pipeline anterior de 14 planos (histórico)
+medidas/              mediciones de VRAM (versionadas). Todas apaisadas: del
+                      formato vertical no hay ni una medida propia
 ```

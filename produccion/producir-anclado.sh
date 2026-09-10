@@ -297,6 +297,10 @@ mapfile -d '' -t MODOS      < <(plan_array modo)
 mapfile -d '' -t ESCENAS    < <(plan_array escena)
 mapfile -d '' -t AMBIENTES  < <(plan_array ambiente)
 mapfile -d '' -t SEMILLAS   < <(plan_array semilla)
+# Cada toma trae SU duracion. El planificador ya la resuelve: si el guion no
+# declara 'frames=N', pone la de la linea de ordenes. Aqui no hay que decidir
+# nada, solo dejar de suponer que todas duran lo mismo.
+mapfile -d '' -t FRAMES_TOMA < <(plan_array frames)
 N=${#CONTENIDOS[@]}
 for t in "${TIPOS[@]}"; do
   tipo_valido "$t" || { echo "tipo de plano desconocido en el guion: '$t' (validos: $PROMPT_TIPOS)"; exit 1; }
@@ -412,9 +416,11 @@ estado --phase planned --completed 0 --total "$N"
 
 SD=$(compat_sdcli) || { echo "sd-cli no es ejecutable aqui"; exit 1; }
 
-SEG=$(awk "BEGIN{printf \"%.1f\", $FRAMES/24}")
-echo "═══ ANCLADO: $NOMBRE · $N tomas de ${SEG}s = $(awk "BEGIN{printf \"%.0f\", $N*$FRAMES/24}")s ═══"
-echo "    ${W}x${H} · ${FRAMES}f · ${PASOS} pasos · $(basename "$MODELO")"
+SEG_TOTAL=$(printf '%s\n' "${FRAMES_TOMA[@]}" | awk '{s+=$1} END{printf "%.1f", s/24}')
+FRAMES_LISTA=$(printf '%s ' "${FRAMES_TOMA[@]}")
+echo "═══ ANCLADO: $NOMBRE · $N tomas · ${SEG_TOTAL}s ═══"
+echo "    ${W}x${H} · ${PASOS} pasos · $(basename "$MODELO")"
+echo "    fotogramas por toma: ${FRAMES_LISTA% }"
 echo "    plan ${RUN_FP:0:12} · tipos: $(printf '%s ' "${TIPOS[@]}")"
 
 validar_video() {  # <ruta> [decodificar=0|1]
@@ -423,9 +429,11 @@ validar_video() {  # <ruta> [decodificar=0|1]
   python3 "$ESTADO_OBRA" "${args[@]}"
 }
 
-validar_toma() {  # <ruta>
+validar_toma() {  # <ruta> [indice-de-toma]
+  local f=$FRAMES
+  [ -n "${2:-}" ] && f=${FRAMES_TOMA[$(($2 - 1))]:-$FRAMES}
   python3 "$ESTADO_OBRA" check-video "$1" --width "$W" --height "$H" \
-    --frames "$FRAMES" --fps 24 --require-audio
+    --frames "$f" --fps 24 --require-audio
 }
 
 fallo_recuperable() {  # <rc> <log> <offset-en-bytes>
@@ -455,6 +463,7 @@ archivar_toma() {  # <indice> <base-sin-extension> <motivo>
 
 generar() {  # $1=indice  $2=contenido  $3=ancla(o vacio)  $4=tipo
   local i=$1 cont=$2 ancla=${3:-} tipo=${4:-habla}
+  local frames_i=${FRAMES_TOMA[$((i-1))]:-$FRAMES}
   local out=$OBRA/t$(printf %02d "$i")
   local esc_toma=${ESCENAS[$((i-1))]:-}
   local esc=${esc_toma:-$ESCENA}
@@ -495,14 +504,14 @@ PY
   if [ -e "$out.avi" ] || [ -L "$out.avi" ]; then
     if python3 "$ESTADO_OBRA" match-fingerprint "$out.fingerprint" "$fingerprint" \
         --artifact "$out.avi"; then
-      if validar_toma "$out.avi" >/dev/null; then
+      if validar_toma "$out.avi" "$i" >/dev/null; then
         echo "  toma $i verificada (huella ${fingerprint:0:12}), salto"
         estado --phase generating --completed "$i" --total "$N" \
           --message "toma $i reutilizada con huella verificada"
         return 0
       fi
       archivar_toma "$i" "$out" "la huella coincide pero el video no valida" || return 1
-    elif [ ! -f "$out.fingerprint" ] && validar_toma "$out.avi" >/dev/null; then
+    elif [ ! -f "$out.fingerprint" ] && validar_toma "$out.avi" "$i" >/dev/null; then
       if [ "${REUTILIZAR_LEGACY:-0}" = 1 ]; then
         echo "  ADVERTENCIA: toma $i legacy sin huella reutilizada por peticion explicita"
         echo "    no se puede demostrar que corresponda a este guion, semilla o modelo"
@@ -522,7 +531,7 @@ PY
   # frames x pixeles, y pedir MAS modelo residente hace que NO quepa.
   # La ruta anclada engorda el buffer ~1.7 GB: hay que decirselo al presupuesto
   # o autoriza mas modelo del que cabe y el guardian corta la toma a medias.
-  local maxv; maxv=$(vram_arg_trabajo 0 "$FRAMES" "$W" "$H" "$([ -n "$ancla" ] && echo 1 || echo 0)")
+  local maxv; maxv=$(vram_arg_trabajo 0 "$frames_i" "$W" "$H" "$([ -n "$ancla" ] && echo 1 || echo 0)")
   estado --phase waiting_resources --completed "$((i-1))" --total "$N" \
     --message "toma $i esperando margen de VRAM y RAM"
   vram_esperar 0 5000 900 || echo "  aviso: margen de VRAM justo, arranco igual"
@@ -561,12 +570,12 @@ PY
     # sin comprobar la VRAM es tirar 20 minutos de GPU a lo mismo: paso dos veces
     # seguidas en 4-fenomenologia, y el log anunciaba "11774 MiB libres" hablando
     # de RAM mientras lo que faltaba era memoria de la tarjeta.
-    VRAM_NECESARIA=$(awk -v f="$FRAMES" -v w="$W" -v h="$H" -v k="$VRAM_MIB_POR_PXFRAME_ANCLA" \
+    VRAM_NECESARIA=$(awk -v f="$frames_i" -v w="$W" -v h="$H" -v k="$VRAM_MIB_POR_PXFRAME_ANCLA" \
                      -v fijo="${VRAM_FIJA_MODELO:-5558}" \
                      'BEGIN{printf "%d", fijo + f*w*h*k + 600}')
     if ! vram_esperar 0 "$VRAM_NECESARIA" 900; then
       echo "  toma $i: tras 15 min la GPU sigue sin $VRAM_NECESARIA MiB." \
-           "Con el escritorio ocupando VRAM, esta toma NO CABE a $FRAMES fotogramas."
+           "Con el escritorio ocupando VRAM, esta toma NO CABE a $frames_i fotogramas."
     fi
     echo "  toma $i: $(ram_libre_mb) MiB libres, reintento"
   fi
@@ -596,13 +605,13 @@ PY
     --audio-vae "$MODELO_AVAE" --llm "$MODELO_LLM" \
     -p "$prompt" -s "${SEMILLAS[$((i-1))]}" \
     --cfg-scale "${CFG:-1.0}" -W "$W" -H "$H" --fps 24 \
-    --video-frames "$FRAMES" --steps "$PASOS" \
+    --video-frames "$frames_i" --steps "$PASOS" \
     --diffusion-fa --rng cpu \
     --backend "diffusion=CUDA0,te=cpu,vae=CUDA0" --params-backend "$PARAMS_BK" \
     --max-vram "$maxv" --stream-layers \
     -o "$temporal" "${extra[@]}" >> "$log" 2>&1
   rc=$?
-  if [ "$rc" -eq 0 ] && validar_toma "$real" >> "$log" 2>&1; then
+  if [ "$rc" -eq 0 ] && validar_toma "$real" "$i" >> "$log" 2>&1; then
     mv -n -- "$real" "$out.avi" || return 1
     [ ! -e "$real" ] && [ -s "$out.avi" ] || return 1
     python3 "$ESTADO_OBRA" write-fingerprint "$out.fingerprint" "$fingerprint" \
@@ -674,7 +683,12 @@ extraer_ancla() {   # $1=origen $2=destino $3=tipo destino -> imprime la ruta
   local A=$OBRA/anclas/a$(printf %02d "$dest").png
   local J=$A.json
   local metodo=temporal-v1 pos modelo="" selector_fp_antes="" modelo_fp_antes=""
-  if [ "$ANCLA_NEUTRAL" = 1 ] && [ "$tipo_destino" = habla ]; then
+  # Cualquier toma con cara hablando merece ancla neutral, no solo 'habla'.
+  # Con "= habla" a secas el reel de noticias (tipo 'informativo') se caia
+  # SIEMPRE al ancla temporal, que coge un fotograma a media locucion: la toma
+  # 2 arrancaba con la boca a medio fonema. Y la receta seguia declarando
+  # neutral-yunet-v1, con lo que recipe.json mentia sobre como se eligio.
+  if [ "$ANCLA_NEUTRAL" = 1 ] && tipo_con_voz "$tipo_destino"; then
     metodo=neutral-yunet-v1
     pos=selector-denso
     modelo=$(validar_selector_neutral) || return 1
@@ -824,7 +838,7 @@ rm -f "$MONT"/*.mp4 "$MONT/lista.txt" "$MONT/tramos.txt"
 # omitia, pero la pieza parcial se publicaba igualmente como LISTO.
 for i in $(seq 1 "$N"); do
   f=$OBRA/t$(printf %02d "$i").avi
-  if ! validar_toma "$f" >/dev/null; then
+  if ! validar_toma "$f" "$i" >/dev/null; then
     echo "FALLO: la toma $i falta o no es un video ${W}x${H} completo; no publico una pieza parcial" >&2
     exit 1
   fi
@@ -861,9 +875,20 @@ for i in $(seq 1 "$N"); do
   elif [ "$i" -gt 1 ] && { [ -n "$_propia" ] || [ "$_modo" = inicio ]; }; then
     echo "  toma $n: imagen propia a proposito, NO se nivela"
   fi
+  # El fundido de 0,25 s se aplica solo en los EXTREMOS de la pieza. Antes
+  # entraba y salia en cada toma, asi que cada union llevaba medio segundo de
+  # hueco: con tomas de 14,4 s se notaba poco, con tomas de 4-8 s es un
+  # agujero. Dentro, 0,04 s (un fotograma) bastan para matar el click.
+  ENT=0.04; SAL=0.04
+  [ "$i" -eq 1 ] && ENT=0.25
+  [ "$i" -eq "$N" ] && SAL=0.25
   if ! ff -y -v error -i "$f" $VF \
-      -af "loudnorm=I=-19:TP=-2:LRA=7,afade=t=in:st=0:d=0.25,afade=t=out:st=$(awk "BEGIN{print $D-0.25}"):d=0.25" \
-      -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -c:a aac -b:a 192k "$MONT/$n.mp4"; then
+      -af "loudnorm=I=-19:TP=-2:LRA=7,afade=t=in:st=0:d=$ENT,afade=t=out:st=$(awk "BEGIN{print $D-$SAL}"):d=$SAL" \
+      `# -ar explicito: loudnorm remuestrea a 192 kHz por dentro y, sin decir` \
+      `# nada, el AAC salia a 96 kHz desde un master PCM de 32 kHz. El doble` \
+      `# de datos para nada, y fuera de lo que un movil espera.` \
+      -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p \
+      -c:a aac -b:a 192k -ar 48000 "$MONT/$n.mp4"; then
     echo "FALLO: no pude procesar la toma $i; conservo todas las tomas y no publico" >&2
     exit 1
   fi
@@ -966,11 +991,17 @@ python3 "$CAL/auditar.py" contacto "$DEST_F" "$OBRA/contacto.jpg" >/dev/null && 
 # duracion: el cello continuo rellena los silencios y el detector lo cuenta como
 # voz. Es la quinta falsa alarma de este tipo, asi que ahora la medida solo se
 # aplica cuando al menos la MITAD de las tomas son habladas.
-_nhabla=$(printf '%s\n' "${TIPOS[@]}" | grep -cx 'habla')
+# Cuenta TODOS los tipos con voz, no solo 'habla'. Con el literal a secas un
+# reel entero de presentadora (tipos 'informativo') daba _nhabla=0 y la unica
+# medida de si se dijo el texto se saltaba SIEMPRE, en el producto real.
+_nhabla=0
+for _t in "${TIPOS[@]}"; do
+  tipo_con_voz "$_t" && _nhabla=$((_nhabla + 1))
+done
 if [ "$_nhabla" -eq 0 ]; then
   echo "  (sin tomas habladas: me salto la cobertura de voz, no aplica)"
 elif [ $((_nhabla * 2)) -lt "$N" ]; then
-  echo "  ($_nhabla de $N tomas habladas: me salto la cobertura de voz, que se mide"
+  echo "  ($_nhabla de $N tomas con voz: me salto la cobertura de voz, que se mide"
   echo "   sobre la pieza entera y daria un ATROPELLADO falso)"
 else
   python3 "$CAL/auditar.py" habla "$DEST_F" || true

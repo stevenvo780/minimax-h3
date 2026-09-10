@@ -499,7 +499,30 @@ def lanzar(guion, nombre, frames, w, h, pasos):
         duration, warnings = _preflight(path, nombre, frames, w, h, pasos)
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
         return {"ok": False, "error": str(exc)}
+    return _arrancar(
+        nombre,
+        [
+            os.path.join(RAIZ, "produccion", "producir-anclado.sh"),
+            path,
+            nombre,
+            str(frames),
+            str(w),
+            str(h),
+            str(pasos),
+        ],
+        duration,
+        warnings,
+    )
 
+
+def _arrancar(nombre, comando, duration, warnings):
+    """Arranca `comando` en segundo plano y lo registra como trabajo en curso.
+
+    Separado de lanzar() porque el reel de noticias NO se lanza con el runner
+    anclado a pelo: ese camino se salta subtitular.py y exportar-reel.sh, que
+    es justo lo que convierte el montaje interno en un reel publicable. El
+    unico camino completo es produccion/reel-noticias.sh.
+    """
     with _lanzamiento_lock:
         if generando():
             return {
@@ -529,15 +552,7 @@ def lanzar(guion, nombre, frames, w, h, pasos):
             handle = open(log, "x")
             try:
                 process = subprocess.Popen(
-                    [
-                        os.path.join(RAIZ, "produccion", "producir-anclado.sh"),
-                        path,
-                        nombre,
-                        str(frames),
-                        str(w),
-                        str(h),
-                        str(pasos),
-                    ],
+                    comando,
                     cwd=RAIZ,
                     stdout=handle,
                     stderr=subprocess.STDOUT,
@@ -566,7 +581,7 @@ def lanzar(guion, nombre, frames, w, h, pasos):
     }
 
 
-def _validar_noticia(titular, texto, nombre, frames):
+def _validar_noticia(titular, texto, nombre, segundos):
     if not isinstance(titular, str) or not titular.strip():
         raise ValueError("hace falta un titular")
     if not isinstance(texto, str):
@@ -583,71 +598,80 @@ def _validar_noticia(titular, texto, nombre, frames):
         raise ValueError(
             "nombre invalido: usa 1-64 letras, numeros, guion o guion bajo"
         )
-    frames = _entero(frames, "frames")
-    if frames < 22 or frames > 345 or (frames - 5) % 17:
-        raise ValueError("frames debe cumplir 17k+5 y estar entre 22 y 345")
-    return titular.strip(), texto, nombre, frames
+    # Lo que se elige es la duracion del REEL, no la de la toma: cada toma dura
+    # lo que su texto tarda en decirse. Antes este campo era "fotogramas por
+    # toma" y ademas se multiplicaba por 3 a escondidas para el presupuesto de
+    # texto, asi que elegir 107 daba un reel de 9 s que tiraba media noticia.
+    segundos = _entero(segundos, "segundos")
+    if segundos < 8 or segundos > 90:
+        raise ValueError("la duracion del reel debe estar entre 8 y 90 segundos")
+    return titular.strip(), texto, nombre, segundos
 
 
-def lanzar_reel(titular, texto, nombre, frames):
-    """Compone el .guion de noticias y lanza el mismo runner anclado, en 9:16."""
+def lanzar_reel(titular, texto, nombre, segundos):
+    """Lanza el reel de noticias por su UNICO camino completo.
+
+    Antes esto componia el guion a mano y llamaba al runner anclado, que se
+    queda en el montaje interno a 416x736: sin subtitulos y sin 1080x1920. La
+    nota de la propia interfaz prometia las dos cosas y no llegaban. Ahora se
+    delega en produccion/reel-noticias.sh, que encadena runner + subtitulos +
+    export, y por tanto no hay dos definiciones de que es un reel.
+
+    Tampoco se elige ya la duracion de la toma: cada toma dura lo que su texto
+    tarda en decirse. Lo que se elige es la duracion del REEL.
+    """
     try:
-        titular, texto, nombre, frames = _validar_noticia(
-            titular, texto, nombre, frames
+        titular, texto, nombre, segundos = _validar_noticia(
+            titular, texto, nombre, segundos
         )
     except (ValueError, TypeError) as exc:
         return {"ok": False, "error": str(exc)}
 
-    dest_dir = os.path.join(GUIONES_DIR, "noticias", "generados")
-    try:
-        os.makedirs(dest_dir, exist_ok=True)
-    except OSError as exc:
-        return {"ok": False, "error": f"no pude crear el directorio de guiones: {exc}"}
-    guion_path = os.path.join(dest_dir, f"{nombre}.guion")
-    if os.path.islink(guion_path) or not _bajo(guion_path, dest_dir):
-        return {"ok": False, "error": "ruta de guion no permitida"}
-    if os.path.exists(guion_path) and not os.path.isfile(guion_path):
-        return {"ok": False, "error": "ruta de guion no permitida"}
+    reel = os.path.join(RAIZ, "produccion", "reel-noticias.sh")
+    if not os.path.isfile(reel):
+        return {"ok": False, "error": "falta produccion/reel-noticias.sh"}
 
-    writer = os.path.join(CODIGO, "harness", "noticias.py")
-    if not os.path.isfile(writer):
-        return {"ok": False, "error": "falta harness/noticias.py"}
-    take_s = round(frames / 24.0, 4)
+    comando = [
+        reel,
+        "--titular", titular,
+        "--nombre", nombre,
+        "--seg-objetivo", str(segundos),
+    ]
+    if texto:
+        comando += ["--texto", texto]
+
+    # Primero se compone y valida el guion sin tocar la GPU: asi un titular que
+    # no da para un reel se rechaza al instante, con su mensaje, en vez de
+    # fallar veinte minutos despues.
+    entorno = dict(os.environ)
+    entorno.update(MD=RAIZ, SOLO_GUION="1")
     try:
-        process = subprocess.run(
-            [
-                sys.executable,
-                writer,
-                "--titular",
-                titular,
-                "--texto",
-                texto,
-                "--guion",
-                guion_path,
-                "--seg-objetivo",
-                str(round(3 * take_s, 1)),
-                "--seg-por-toma",
-                str(take_s),
-                "--categoria",
-                "noticias",
-            ],
-            cwd=CODIGO,
-            capture_output=True,
-            text=True,
-            timeout=20,
-            check=False,
+        previo = subprocess.run(
+            comando, cwd=RAIZ, capture_output=True, text=True,
+            timeout=60, check=False, env=entorno, stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError) as exc:
         return {"ok": False, "error": f"no pude componer el guion: {exc}"}
-    if process.returncode or not os.path.isfile(guion_path):
-        detail = (process.stderr or process.stdout or "").strip().splitlines()
+    if previo.returncode:
+        detalle = (previo.stderr or previo.stdout or "").strip().splitlines()
         return {
             "ok": False,
-            "error": detail[-1] if detail else "no se pudo componer el guion",
+            "error": detalle[-1] if detalle else "no se pudo componer el guion",
         }
 
-    relative = os.path.relpath(guion_path, RAIZ)
-    return lanzar(relative, nombre, frames, 416, 736, 20)
+    avisos = [
+        linea.strip()[len("aviso:"):].strip()
+        for linea in (previo.stdout or "").splitlines()
+        if linea.strip().startswith("aviso:")
+    ]
+    duracion = 0.0
+    for linea in (previo.stdout or "").splitlines():
+        match = re.search(r"([0-9]+(?:\.[0-9]+)?) s de voz", linea)
+        if match:
+            duracion = float(match.group(1))
+            break
+
+    return _arrancar(nombre, comando, duracion, avisos)
 
 
 def snapshot_estado():
@@ -726,16 +750,16 @@ details>summary{cursor:pointer;color:var(--sec);font-size:12px;text-transform:up
       <h2>Reel de noticias</h2>
       <label>Titular</label><input id="titular" placeholder="Lo que ha pasado, en una frase">
       <label>Cuerpo (hechos, sin inventar)</label>
-      <textarea id="cuerpo" placeholder="Pega aquí la noticia. Solo se dirá lo que quepa en ~20 s."></textarea>
+      <textarea id="cuerpo" placeholder="Pega aquí la noticia. Se dirá lo que quepa en la duración elegida."></textarea>
       <label>Nombre del corte</label><input id="nombre-reel" value="corte">
-      <label>Duración por toma</label>
-      <select id="frames-reel">
-        <option value="107">107 — 4,5 s · más cortes</option>
-        <option value="192" selected>192 — 8,0 s · reel corto</option>
-        <option value="345">345 — 14,4 s · un bloque</option>
+      <label>Duración del reel</label>
+      <select id="segundos-reel">
+        <option value="16">16 s · sólo el titular y un dato</option>
+        <option value="32" selected>32 s · reel completo</option>
+        <option value="48">48 s · la noticia entera</option>
       </select>
       <button id="btn-reel">Generar reel 9:16</button>
-      <div class="nota" id="nota-reel">416×736 nativo, subtítulos en zona segura, export 1080×1920. No inventa hechos: recorta el texto que pegas.</div>
+      <div class="nota" id="nota-reel">416×736 nativo, subtítulos quemados ya a 1080×1920, export 9:16. No inventa hechos: cada frase sale literal de lo que pegas. Cada toma dura lo que su texto tarda en decirse.</div>
     </div>
     <details class="panel" style="margin-top:16px">
       <summary>Guion avanzado</summary>
@@ -835,7 +859,7 @@ $('#btn-reel').onclick=async()=>{
   let r;
   try { r=await (await fetch('/api/reel',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({titular:$('#titular').value,texto:$('#cuerpo').value,
-        nombre:$('#nombre-reel').value,frames:+$('#frames-reel').value})})).json(); }
+        nombre:$('#nombre-reel').value,segundos:+$('#segundos-reel').value})})).json(); }
   catch(e) { r={ok:false,error:'no respondió el servidor'}; }
   $('#nota-reel').textContent = r.ok ? 'lanzada: '+r.nombre+' · '+r.duracion_estimada_s+
     ' s finales estimados · log en '+r.log+(r.avisos&&r.avisos.length?' · '+r.avisos.join(' · '):'')
@@ -1072,7 +1096,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 data.get("titular", ""),
                 data.get("texto", ""),
                 data.get("nombre", "corte"),
-                data.get("frames", 192),
+                data.get("segundos", 32),
             )
         else:
             result = lanzar(

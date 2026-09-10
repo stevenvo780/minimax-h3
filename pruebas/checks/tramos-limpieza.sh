@@ -1,6 +1,6 @@
 #!/bin/bash
 nombre="tramos-limpieza"
-RAIZ="${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}"
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 
 [ -d "$RAIZ" ] || { echo "FALLA $nombre: RAIZ no es un directorio: $RAIZ"; exit 1; }
 

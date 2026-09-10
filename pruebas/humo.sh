@@ -81,31 +81,48 @@ else
   fi
 fi
 
-echo "═══ D. MONTAJE COMPLETO (sin GPU, sobre una COPIA) ═══"
+echo "═══ D. MONTAJE COMPLETO (sin GPU, sobre una obra fabricada aqui) ═══"
+# Antes este bloque buscaba produccion/obra/existencialismo*, que no se
+# versiona: en un clon limpio salia SALTA siempre, y ademas ataba la prueba de
+# humo a los guiones de la etapa filosofia. Ahora la obra se fabrica con
+# lavfi, asi que el bloque corre en cualquier maquina con ffmpeg y no depende
+# de material que ya no se produce.
 OBRA=$RAIZ/produccion/obra
-ORIG=""
-for cand in existencialismo-4p existencialismo existencialismo-largo; do
-  [ -d "$OBRA/$cand" ] && [ -n "$(ls "$OBRA/$cand"/p*.avi 2>/dev/null)" ] && { ORIG=$cand; break; }
-done
 if [ $HAY_FF -eq 0 ]; then
   paso "montaje de la obra"; salta "requiere ffmpeg"
-elif [ -z "$ORIG" ]; then
-  paso "montaje de la obra"; salta "no hay ninguna obra con planos"
 else
-  N=$(ls "$OBRA/$ORIG"/p*.avi | wc -l)
-  GUION=$RAIZ/produccion/guiones/exis4.guion
-  [ "$ORIG" = existencialismo ] && GUION=$RAIZ/produccion/guiones/existencialismo.guion
-  [ "$ORIG" = existencialismo-largo ] && GUION=$RAIZ/produccion/guiones/existencialismo-largo.guion
-  rm -rf "$OBRA/humo-montaje"; cp -r "$OBRA/$ORIG" "$OBRA/humo-montaje"
-  mkdir -p "$OBRA/humo-montaje/montaje"
-  printf '02\n07\n11\n' > "$OBRA/humo-montaje/montaje/tramos.txt"   # fronteras falsas a proposito
+  MONT=$OBRA/humo-montaje
+  rm -rf "$MONT"; mkdir -p "$MONT/montaje"
+  GUION=$T/humo-montaje.guion
+  {
+    echo "@ESCENA Una escena estable de prueba."
+    echo "@AMBIENTE Un tono de sala muy silencioso."
+    echo "@MUSICA Sin musica."
+    echo ""
+    echo "HABLA|Primera frase de la prueba de humo.|"
+    # 'encadena' marca que la segunda toma continua la primera: sin frontera
+    # de tramo, y por tanto sin fundido. Es lo que hace que tramos.txt tenga
+    # que quedar VACIO despues de limpiarlo.
+    echo "HABLA|Segunda frase de la prueba de humo.|encadena"
+  } > "$GUION"
+  N=2
+  for i in 01 02; do
+    ffmpeg -nostdin -y -v error \
+      -f lavfi -i "color=c=gray:s=320x176:d=2:r=24" \
+      -f lavfi -i "sine=frequency=440:duration=2" \
+      -shortest -c:v mjpeg -q:v 5 -c:a pcm_s16le "$MONT/p$i.avi" || break
+  done
+  if [ ! -s "$MONT/p01.avi" ] || [ ! -s "$MONT/p02.avi" ]; then
+    paso "montaje de la obra"; salta "no pude fabricar los planos de prueba"
+  else
+  printf '02\n07\n11\n' > "$MONT/montaje/tramos.txt"   # fronteras falsas a proposito
   DEST=$T bash "$RAIZ/produccion/producir.sh" "$GUION" humo-montaje > "$T/mont.log" 2>&1
   paso "los $N planos se saltan (idempotencia)"
   [ "$(grep -ac 'ya existe, salto' "$T/mont.log")" -eq "$N" ] && si || no "$(grep -ac 'ya existe, salto' "$T/mont.log")/$N"
-  # Que el fichero ya no exista es el resultado IDEAL: exis4 no tiene fronteras
-  # de tramo, asi que tras limpiarlo no hay motivo para volver a crearlo.
+  # Que el fichero ya no exista es el resultado IDEAL: este guion no tiene
+  # fronteras de tramo, asi que tras limpiarlo no hay motivo para recrearlo.
   paso "tramos.txt se regenero (no sobrevive lo falso)"
-  TRF=$OBRA/humo-montaje/montaje/tramos.txt
+  TRF=$MONT/montaje/tramos.txt
   if [ ! -f "$TRF" ]; then si
   else
     TR=$(tr '\n' ' ' < "$TRF")
@@ -123,7 +140,8 @@ else
     paso "decodifica entero sin errores"
     [ -z "$(ffmpeg -nostdin -v error -i "$FIN" -f null - 2>&1)" ] && si || no "hay errores de decodificacion"
   fi
-  rm -rf "$OBRA/humo-montaje"
+  fi
+  rm -rf "$MONT"
 fi
 
 echo

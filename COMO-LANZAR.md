@@ -10,26 +10,35 @@ produccion/reel-noticias.sh \
 ```
 
 Nativo **416×736** (9:16, los mismos píxeles que 736×416). Subtítulos quemados
-por encima de la UI del feed. Export **1080×1920**. No inventa: recorta.
+ya a 1080×1920, por encima de la UI del feed. Export **1080×1920** a −14 LUFS.
+No inventa: cada frase sale literal del texto que le das.
 
 ```bash
 VALIDAR=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
-ui/servidor.py          # titular + cuerpo → el mismo pipeline
+SOLO_GUION=1 produccion/reel-noticias.sh --fichero noticia.txt --nombre corte
+produccion/tanda-noticias-dia.sh    # todo produccion/noticias/dia/, en serie
+ui/servidor.py                      # titular + cuerpo → el mismo pipeline
 ```
 
-`BROLL=1` intercalas planos de apoyo y baja a 107 fotogramas (4,5 s): un apoyo
-a 8 s es un silencio de 8 s, el modelo no hace voz en off.
+**Cada toma dura lo que su texto tarda en decirse**, redondeado a la escalera
+17k+5 del modelo (73 … 192 f). `--seg-objetivo` es la duración del reel y se
+cumple: 32 son 32 segundos de vídeo, no un presupuesto intermedio.
 
-El motor de siempre, abajo, sigue sirviendo para filosofía y para cualquier
-`.guion`. Un reel de noticias **es** una tanda anclada, con otro tipo de plano
-(`informativo`) y otro encuadre.
+`BROLL=1` intercala planos de apoyo. No llevan voz —el modelo no hace voz en
+off— así que duran 107 f (4,5 s) mientras las habladas conservan la suya.
+
+**Lee los avisos que imprime.** `frase descartada`, `ya dicho al 67%` y
+`toma 2 a 3,4 pal/s` salen antes de tocar la GPU y son la diferencia entre un
+reel decente y veinte minutos tirados.
+
+El motor de abajo sirve para cualquier `.guion`. Un reel de noticias **es** una
+tanda anclada, con otro tipo de plano (`informativo`) y otro encuadre.
 
 ## La versión corta (motor MiniMax-H3)
 
 ```bash
-cd minimax-h3
-produccion/lazo.sh produccion/guiones/exis-toma-unica.guion mi-pieza \
-    --meta 85 --horas 8 --frames 345 --w 736 --h 416 --pasos 20
+produccion/lazo.sh <un.guion> mi-pieza \
+    --meta 85 --horas 8 --frames 192 --w 416 --h 736 --pasos 20
 ```
 
 Genera, mide, guarda cada intento con su nota, enlaza el mejor y sigue con otra
@@ -219,7 +228,8 @@ negaba —con razón— a montar un vídeo incompleto, y **nunca escaló nada**.
 
 - **No encadenes por defecto.** Cada eslabón cuesta, y el tercero cuesta 19 puntos.
 - **No desenfoques para subir la nota.** Se probó: devuelve la energía de borde a
-  la referencia y deja la cara sin poro ni pelo de barba. `lib/enlace.sh` tiene un
+  la referencia y deja la cara sin poro ni textura de piel. El módulo que aplicaba
+  ese tope (`lib/enlace.sh`) se retiró con la maquinaria de encadenado; tenía un
   tope duro en σ 0,35 y se niega a pasar.
 - **No pidas el fondo por negación.** «no objects, no furniture, no walls» mete
   muebles y paredes. Descríbelo en positivo: «a plain matte black backdrop».

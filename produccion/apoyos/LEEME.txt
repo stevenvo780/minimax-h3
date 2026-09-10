@@ -1,0 +1,3 @@
+Planos de apoyo (B-roll) ya generados que un guion puede insertar con
+una linea BROLL|fichero.avi|. Antes se buscaban en proyecto-minuto/,
+el subproyecto de la etapa filosofia, que ya no existe.

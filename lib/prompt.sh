@@ -18,6 +18,21 @@
 # harness/planificar.py VALID_TYPES (si no, el planificador lo rechaza antes).
 PROMPT_TIPOS="habla muda accion detalle paisaje camara informativo"
 
+# Tipos que llevan una CARA HABLANDO. Es lo unico que decide si una toma
+# necesita ancla neutral, subtitulo y comprobacion de que se dijo el texto.
+#
+# Este dato estaba copiado en cinco sitios (harness/componer.py,
+# produccion/subtitular.py, produccion/sondear-dia.sh, dos checks) y FALTABA
+# justo donde mas dolia: producir-anclado.sh preguntaba "= habla" a secas, asi
+# que el reel de noticias —cuyas tomas son 'informativo'— nunca llegaba al
+# selector de ancla neutral. Ahora hay un solo sitio para el lado bash y el
+# espejo del lado python esta en harness/componer.py::TIPOS_VOZ.
+PROMPT_TIPOS_VOZ="habla informativo"
+
+tipo_con_voz() {
+  case " $PROMPT_TIPOS_VOZ " in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
+
 _cuerpo_prompt() {   # $1=tipo  $2=escena  $3=contenido
   local tipo=$1 escena=$2 cont=$3
   case "$tipo" in

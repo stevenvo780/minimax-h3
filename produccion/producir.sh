@@ -103,7 +103,9 @@ while IFS='|' read -r TIPO CONT MODO ENCU; do
       fi
       ;;
     BROLL)
-      SRC="$MD/proyecto-minuto/$CONT"
+      # Los planos de apoyo viven en produccion/apoyos/. Antes se buscaban en
+      # proyecto-minuto/, un subproyecto de la etapa filosofia ya retirado.
+      SRC="$MD/produccion/apoyos/$CONT"
       [ -f "$SRC" ] || SRC="$CONT"
       if [ -f "$SRC" ]; then
         echo "$SRC" >> "$OBRA/orden.txt"; echo "  broll: $(basename $SRC)"

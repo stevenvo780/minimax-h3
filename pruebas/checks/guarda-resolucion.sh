@@ -1,6 +1,6 @@
 #!/bin/bash
 CHECK="guarda-resolucion"
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 WORK=""
 fallar() {
   echo "FALLA $CHECK: $1"

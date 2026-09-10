@@ -47,6 +47,34 @@ good.write_text(
 os.symlink(outside / "escapado.guion", scripts / "enlace.guion")
 os.symlink(outside / "directorio", scripts / "salto")
 
+# reel-noticias.sh de mentira: comprueba que la interfaz llama al camino
+# COMPLETO (runner + subtitulos + export) sin gastar GPU, y compone el guion
+# con SOLO_GUION igual que el de verdad, para que la asercion sobre el .guion
+# siga midiendo algo.
+reel = root / "produccion" / "reel-noticias.sh"
+reel.write_text(
+    "#!/bin/bash\n"
+    "set -u\n"
+    'DEST="$(dirname "$0")/guiones/noticias/generados"\n'
+    "mkdir -p \"$DEST\"\n"
+    "NOMBRE=corte; TIT=\n"
+    "while [ $# -gt 0 ]; do\n"
+    '  case "$1" in\n'
+    "    --nombre) NOMBRE=$2; shift 2 ;;\n"
+    "    --titular) TIT=$2; shift 2 ;;\n"
+    "    *) shift ;;\n"
+    "  esac\n"
+    "done\n"
+    '[ -n "$TIT" ] || { echo "falta titular" >&2; exit 2; }\n'
+    '{ echo "@TIPO informativo"; echo "@ESCENA e"; echo "@AMBIENTE a";\n'
+    '  echo "@MUSICA m"; echo "TOMA|$TIT|inicio|informativo|frames=192"; } \\\n'
+    '  > "$DEST/$NOMBRE.guion"\n'
+    'echo "  2 tomas habladas · 20 palabras · 16.0 s de voz"\n'
+    "exit 0\n",
+    encoding="utf-8",
+)
+reel.chmod(0o755)
+
 ui.RAIZ = str(root)
 ui.GUIONES_DIR = str(scripts)
 ui.OBRAS_DIR = str(works)
@@ -166,6 +194,7 @@ assert len(ui.estados_durables()) == 1
 os.symlink(outside / "secreto.mp4", deliveries / "enlace.mp4")
 
 launch_calls = []
+arranques = []
 
 
 def harmless_launch(*args):
@@ -173,7 +202,16 @@ def harmless_launch(*args):
     return {"ok": True, "nombre": args[1], "simulado": True}
 
 
+def harmless_arranque(nombre, comando, duracion=0.0, avisos=()):
+    # Se intercepta _arrancar y no lanzar(): el reel de noticias no pasa por
+    # lanzar(). Interceptando solo lanzar() esta prueba daba PASA mientras la
+    # interfaz publicaba el montaje interno en vez de un reel.
+    arranques.append((nombre, list(comando)))
+    return {"ok": True, "nombre": nombre, "simulado": True}
+
+
 ui.lanzar = harmless_launch
+ui._arrancar = harmless_arranque
 server = ui.Servidor(("127.0.0.1", 0), ui.H)
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
@@ -330,7 +368,7 @@ try:
         "/api/reel",
         headers={"Content-Type": "application/json"},
         body=json.dumps(
-            {"titular": "", "texto": "cuerpo", "nombre": "corte", "frames": 192}
+            {"titular": "", "texto": "cuerpo", "nombre": "corte", "segundos": 32}
         ).encode(),
     )
     assert status == 409, (status, payload)
@@ -345,14 +383,24 @@ try:
                 "titular": "El congreso aprueba la ley de vivienda.",
                 "texto": "El tope al alquiler entra en vigor el mes que viene.",
                 "nombre": "corte-ui",
-                "frames": 192,
+                "segundos": 32,
             }
         ).encode(),
     )
     assert status == 202, (status, payload)
-    assert len(launch_calls) == 2, launch_calls
-    reel_args = launch_calls[1]
-    assert reel_args[2] == 192 and reel_args[3] == 416 and reel_args[4] == 736, reel_args
+    # El reel NO se lanza con el runner anclado a pelo: ese camino se salta
+    # subtitular.py y exportar-reel.sh, o sea que entrega el montaje interno
+    # a 416x736 en vez de un reel. El unico camino completo es reel-noticias.sh.
+    assert len(arranques) == 1, arranques
+    comando = arranques[0][1]
+    assert comando[0].endswith("produccion/reel-noticias.sh"), comando
+    assert "--titular" in comando and "--nombre" in comando, comando
+    assert comando[comando.index("--nombre") + 1] == "corte-ui", comando
+    assert "--seg-objetivo" in comando, comando
+    assert comando[comando.index("--seg-objetivo") + 1] == "32", comando
+    # Y el guion se compone de verdad: reel-noticias.sh lo escribe con
+    # SOLO_GUION antes de gastar GPU, asi que un titular imposible se rechaza
+    # al instante en vez de veinte minutos despues.
     composed = scripts / "noticias" / "generados" / "corte-ui.guion"
     assert composed.is_file() and "informativo" in composed.read_text(
         encoding="utf-8"

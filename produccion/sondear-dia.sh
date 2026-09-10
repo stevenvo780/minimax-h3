@@ -1,123 +1,161 @@
 #!/bin/bash
-# Lista los MP4 dia-* publicados: ruta, bytes, duracion, WxH, codecs.
-# Falla si no hay 5, si falta audio/video, o si duracion <= 0.
+# ═══════════════════════════════════════════════════════════════════════════
+#  SONDEAR EL DIA — comprueba que lo entregado es un REEL publicable.
+#
+#  Antes esto miraba los dia-*.mp4 en bruto: el montaje interno a 416x736,
+#  sin subtitulos y a -19 LUFS. Es decir, la prueba de aceptacion certificaba
+#  el artefacto equivocado, y por eso cinco piezas a media cocer pasaron por
+#  buenas. Ahora el sujeto es el reel: 1080x1920 y sonoridad de movil.
+#
+#  Tambien desaparece de aqui la lista negra de palabras de filosofia
+#  ("existencialismo", "estoicismo", "cinismo"...): lo que hace que una pieza
+#  sea del dia no es no llamarse como una pieza vieja, es tener detras una
+#  noticia con fuente. Eso ya se comprueba, y se comprueba en positivo.
+#
+#  Uso:  produccion/sondear-dia.sh [salida.tsv]
+#  Entorno: DEST=<dir de entregas>  MINIMO=5  LUFS=-14
+# ═══════════════════════════════════════════════════════════════════════════
 set -u
 . "$(dirname "${BASH_SOURCE[0]}")/../lib/comun.sh"
-exigir_herramientas ffprobe python3 || exit 1
+exigir_herramientas ffprobe ffmpeg python3 || exit 1
 
 OUT=${1:-}
 DEST_DIR=${DEST:-$MD/videos/entregas}
-mapfile -t FILES < <(ls -1 "$DEST_DIR"/dia-*.mp4 2>/dev/null | sort)
+MINIMO=${MINIMO:-5}
+mapfile -t FILES < <(ls -1 "$DEST_DIR"/dia-*-reel-*.mp4 2>/dev/null | sort)
 n=${#FILES[@]}
-[ "$n" -ge 5 ] || { echo "FALLO: hay $n MP4 dia-* en $DEST_DIR, se esperaban 5" >&2; exit 1; }
+if [ "$n" -lt "$MINIMO" ]; then
+  echo "FALLO: hay $n reels dia-*-reel-*.mp4 en $DEST_DIR, se esperaban $MINIMO" >&2
+  echo "       (un dia-*.mp4 sin '-reel-' es el montaje interno, no el producto:" >&2
+  echo "        lo publica reel-noticias.sh tras subtitular y exportar a 1080x1920)" >&2
+  exit 1
+fi
 
-python3 - "$OUT" "${FILES[@]}" <<'PY'
+python3 - "$MD" "$OUT" "${FILES[@]}" <<'PY'
 import json, os, subprocess, sys
 
-out = sys.argv[1] if sys.argv[1] else ""
-files = sys.argv[2:]
-rows = []
-seen = set()
-for path in files:
-    name = os.path.basename(path)
-    if name in seen:
-        sys.exit(f"FALLO: nombre duplicado {name}")
-    seen.add(name)
-    r = subprocess.run(
-        [
-            "ffprobe", "-v", "error",
-            "-show_entries", "format=duration,size:stream=codec_type,codec_name,width,height",
-            "-of", "json", path,
-        ],
+raiz, out = sys.argv[1], sys.argv[2]
+files = sys.argv[3:]
+sys.path.insert(0, os.path.join(raiz, "harness"))
+import redaccion  # noqa: E402
+
+LUFS_OBJETIVO = float(os.environ.get("LUFS", "-14"))
+LUFS_TOLERANCIA = 2.0
+
+
+def falla(mensaje):
+    sys.exit(f"FALLO: {mensaje}")
+
+
+def historia(nombre):
+    """dia-miami-amazon-416x736-32s-...-reel-1080x1920.mp4 -> dia-miami-amazon"""
+    for token in ("-416x", "-736x", "-1080x", "-1376x"):
+        if token in nombre:
+            return nombre.split(token)[0]
+    return nombre
+
+
+def sonoridad(path):
+    proc = subprocess.run(
+        ["ffmpeg", "-nostdin", "-i", path, "-af", "ebur128", "-f", "null", "-"],
         capture_output=True, text=True,
     )
-    if r.returncode != 0:
-        sys.exit(f"FALLO: ffprobe {path}: {r.stderr[-200:]}")
-    data = json.loads(r.stdout)
+    marca = "I:"
+    for linea in reversed(proc.stderr.splitlines()):
+        if marca in linea and "LUFS" in linea:
+            try:
+                return float(linea.split(marca)[1].split("LUFS")[0])
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+rows, vistos = [], set()
+for path in files:
+    nombre = os.path.basename(path)
+    if nombre in vistos:
+        falla(f"nombre duplicado {nombre}")
+    vistos.add(nombre)
+    proc = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries",
+         "format=duration,size:stream=codec_type,codec_name,width,height",
+         "-of", "json", path],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        falla(f"ffprobe {path}: {proc.stderr[-200:]}")
+    data = json.loads(proc.stdout)
     fmt = data.get("format") or {}
-    streams = data.get("streams") or []
-    types = {s.get("codec_type") for s in streams if isinstance(s, dict)}
-    if "video" not in types or "audio" not in types:
-        sys.exit(f"FALLO: {path} sin video+audio ({types})")
+    streams = [s for s in (data.get("streams") or []) if isinstance(s, dict)]
+    tipos = {s.get("codec_type") for s in streams}
+    if "video" not in tipos or "audio" not in tipos:
+        falla(f"{nombre} sin video+audio ({tipos})")
     try:
         dur = float(fmt.get("duration") or 0)
     except (TypeError, ValueError):
         dur = 0.0
     if dur <= 0:
-        sys.exit(f"FALLO: {path} duracion {dur}")
+        falla(f"{nombre} duracion {dur}")
     size = int(fmt.get("size") or os.path.getsize(path))
     if size < 10000:
-        sys.exit(f"FALLO: {path} demasiado pequeño ({size} B)")
+        falla(f"{nombre} demasiado pequeño ({size} B)")
     vid = next(s for s in streams if s.get("codec_type") == "video")
-    aud = next(s for s in streams if s.get("codec_type") == "audio")
     w, h = int(vid.get("width") or 0), int(vid.get("height") or 0)
+    if (w, h) != (1080, 1920):
+        falla(f"{nombre} es {w}x{h}; un reel se publica en 1080x1920")
+    lufs = sonoridad(path)
+    if lufs is None:
+        falla(f"{nombre}: no pude medir la sonoridad")
+    if abs(lufs - LUFS_OBJETIVO) > LUFS_TOLERANCIA:
+        falla(
+            f"{nombre} a {lufs:.1f} LUFS; el movil pide {LUFS_OBJETIVO:.0f} "
+            f"(±{LUFS_TOLERANCIA:.0f}). ¿Se publico el montaje interno?"
+        )
     rows.append({
-        "path": path,
-        "name": name,
-        "bytes": size,
-        "duration_s": round(dur, 3),
-        "width": w,
-        "height": h,
-        "video_codec": vid.get("codec_name"),
-        "audio_codec": aud.get("codec_name"),
-        "codecs": ",".join(
-            f"{s.get('codec_type')}:{s.get('codec_name')}" for s in streams
-        ),
+        "path": path, "name": nombre, "historia": historia(nombre),
+        "bytes": size, "duration_s": round(dur, 3), "width": w, "height": h,
+        "lufs": round(lufs, 1),
+        "codecs": ",".join(f"{s.get('codec_type')}:{s.get('codec_name')}" for s in streams),
     })
 
-# Distinct stories: filename stem before first resolution token.
-stems = []
-for row in rows:
-    stem = row["name"].split("-416x")[0].split("-736x")[0].split("-1376x")[0]
-    stems.append(stem)
-if len(set(stems)) < 5:
-    sys.exit(f"FALLO: historias no distintas: {stems}")
-banned = ("existencialismo", "formato-", "estoicismo", "cinismo", "absurdo", "fenomenologia", "dialectica")
-for row in rows:
-    low = row["name"].lower()
-    if any(b in low for b in banned):
-        sys.exit(f"FALLO: no es una noticia del dia: {row['name']}")
+historias = [r["historia"] for r in rows]
+if len(set(historias)) < len(rows):
+    falla(f"historias no distintas: {historias}")
 
-lines = [
-    "path\tbytes\tduration_s\twidth\theight\tcodecs",
-]
-for row in rows:
-    lines.append(
-        f"{row['path']}\t{row['bytes']}\t{row['duration_s']}\t"
-        f"{row['width']}\t{row['height']}\t{row['codecs']}"
+lineas = ["path\tbytes\tduration_s\twidth\theight\tlufs\tcodecs"]
+for r in rows:
+    lineas.append(
+        f"{r['path']}\t{r['bytes']}\t{r['duration_s']}\t{r['width']}\t"
+        f"{r['height']}\t{r['lufs']}\t{r['codecs']}"
     )
-text = "\n".join(lines) + "\n"
+texto = "\n".join(lineas) + "\n"
 if out:
     os.makedirs(os.path.dirname(os.path.abspath(out)) or ".", exist_ok=True)
-    open(out, "w", encoding="utf-8").write(text)
-sys.stdout.write(text)
+    open(out, "w", encoding="utf-8").write(texto)
+sys.stdout.write(texto)
 
-# Cada TOMA hablada tiene que ser substring de la fuente investigada.
-md = os.path.dirname(os.path.dirname(os.path.abspath(files[0])))
-# files live in videos/entregas; project root is parent of videos/
-root = os.path.dirname(os.path.dirname(files[0])) if os.path.basename(os.path.dirname(files[0])) == "entregas" else None
-if root and os.path.basename(root) == "videos":
-    root = os.path.dirname(root)
-if not root:
-    root = os.environ.get("MD") or os.getcwd()
-obras = os.path.join(root, "produccion", "obra")
-for row in rows:
-    name = row["name"].split("-416x")[0].split("-736x")[0].split("-1376x")[0]
-    src_path = os.path.join(obras, name, "fuente.json")
-    guion_path = os.path.join(obras, name, "entrada.guion")
-    if not os.path.isfile(src_path) or not os.path.isfile(guion_path):
-        sys.exit(f"FALLO: falta fuente o guion junto a la obra {name}")
-    src = json.load(open(src_path, encoding="utf-8"))
-    origen = (src.get("titular", "") + " " + src.get("cuerpo", "")).lower()
-    for line in open(guion_path, encoding="utf-8"):
-        if not line.startswith("TOMA|"):
+# Cada TOMA hablada tiene que estar en la noticia investigada. Se comprueba
+# FRASE A FRASE: al saltarse lo ya dicho, una toma puede juntar dos frases que
+# en el teletipo original no eran contiguas.
+obras = os.path.join(raiz, "produccion", "obra")
+for r in rows:
+    nombre = r["historia"]
+    fuente = os.path.join(obras, nombre, "fuente.json")
+    guion = os.path.join(obras, nombre, "entrada.guion")
+    if not os.path.isfile(fuente) or not os.path.isfile(guion):
+        falla(f"falta fuente o guion junto a la obra {nombre}")
+    src = json.load(open(fuente, encoding="utf-8"))
+    origen = src.get("titular", "") + " " + src.get("cuerpo", "")
+    for linea in open(guion, encoding="utf-8"):
+        if not linea.startswith("TOMA|"):
             continue
-        campos = line.split("|")
+        campos = linea.split("|")
         tipo = campos[3].strip() if len(campos) > 3 else ""
-        if tipo and tipo not in {"habla", "informativo"}:
+        if tipo and tipo not in redaccion.TIPOS_VOZ:
             continue
-        nucleo = campos[1].strip().lower().rstrip(".!?…")
-        if nucleo not in origen:
-            sys.exit(f"FALLO: TOMA inventada en {name}: {campos[1][:80]}")
-print(f"ok sondear-dia ({len(rows)} mp4, tomas ⊆ fuente)", file=sys.stderr)
+        toma = campos[1].strip()
+        if not redaccion.en_fuente(toma, origen):
+            falla(f"TOMA inventada en {nombre}: {toma[:80]}")
+
+print(f"ok sondear-dia ({len(rows)} reels 1080x1920, tomas ⊆ fuente)", file=sys.stderr)
 PY

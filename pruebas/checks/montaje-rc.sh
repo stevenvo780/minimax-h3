@@ -1,7 +1,7 @@
 #!/bin/bash
 set -u
 NOMBRE="montaje-rc"
-RAIZ="${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}"
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 PROD_SH="$RAIZ/produccion/producir.sh"
 
 # Sin errexit a proposito: todas las comprobaciones son explicitas via `fallar`.

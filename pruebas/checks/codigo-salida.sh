@@ -1,5 +1,5 @@
 #!/bin/bash
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 nombre="codigo-salida"
 exec 0</dev/null
 

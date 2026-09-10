@@ -38,7 +38,10 @@ RSS=""
 TEMA=""
 INDICE=0
 NOMBRE=""
-SEG_OBJ=20
+# Duracion del reel. Con tomas de 8 s (192 f) son cuatro tomas: el reel de dos
+# tomas que salia antes eran 16 s en los que solo cabia el titular y su
+# reformulacion, y lo que de verdad habia pasado no se llegaba a decir.
+SEG_OBJ=32
 FRAMES=""
 ANCHO=""
 ALTO=""
@@ -91,9 +94,9 @@ fi
 
 RITMO=""
 if [ "${BROLL:-0}" = 1 ]; then
-  # Un apoyo dura lo mismo que una toma hablada. A 192 f son 8 s de silencio
-  # en un reel: inaceptable. A 107 f (4,5 s) el corte visual aguanta.
-  FRAMES=107
+  # Ya no hace falta encoger TODAS las tomas para que el apoyo no sean ocho
+  # segundos de silencio: cada toma lleva su duracion, y el compositor le da
+  # al apoyo la suya (107 f = 4,5 s).
   RITMO="informativo,detalle,informativo"
 fi
 
@@ -154,6 +157,29 @@ fi
 # ffmpeg solo hace falta a partir de aqui: componer el guion es texto.
 exigir_herramientas ffmpeg ffprobe || exit 1
 
+# ── ancla neutral ──────────────────────────────────────────────────────────
+# El runner sabe elegir el fotograma de ancla mirando la cara (boca cerrada,
+# pose frontal, nitidez), pero es opt-in y NADIE lo encendia: el reel se
+# anclaba a un fotograma elegido por reloj, casi siempre en mitad de una
+# palabra, y la toma siguiente arrancaba con la boca abierta.
+#
+# Se enciende aqui, y solo si el selector es utilizable: en una maquina sin
+# .venv-calidad ni el modelo YuNet, el runner aborta a proposito antes que
+# caer en silencio al ancla temporal, y eso dejaria el reel sin generar.
+if [ -z "${ANCLA_NEUTRAL:-}" ]; then
+  if [ -x "$MD/.venv-calidad/bin/python" ] \
+     && [ -f "$MD/calidad/seleccionar-ancla.py" ] \
+     && compgen -G "$MD/modelos/evaluacion/face_detection_yunet*.onnx" >/dev/null
+  then
+    export ANCLA_NEUTRAL=1
+  else
+    export ANCLA_NEUTRAL=0
+    echo "  aviso: sin selector de ancla neutral (falta .venv-calidad o el modelo"
+    echo "         YuNet); el ancla saldra por reloj. Arreglalo con"
+    echo "         calidad/preparar-modelos-evaluacion.sh"
+  fi
+fi
+
 # VALIDAR atraviesa el runner real. No se llama a sd-cli.
 if [ "${VALIDAR:-0}" = 1 ]; then
   VALIDAR=1 bash "$RUNNER" "$GUION" "$NOMBRE" "$FRAMES" "$ANCHO" "$ALTO" "$PASOS"
@@ -182,11 +208,19 @@ PY
   exit 1
 }
 
-SUBOUT=${VIDEO%.mp4}-subs.mp4
 REELOUT=${VIDEO%.mp4}-reel-1080x1920.mp4
-python3 "$SUBS" "$VIDEO" --guion "$GUION" --salida "$SUBOUT" || exit $?
-bash "$EXPORT" "$SUBOUT" "$REELOUT" || exit $?
+# Subtitulos y escalado en UNA pasada. Antes se quemaban a 416x736 y despues
+# se ampliaban 2,6x: el rotulo salia borroso por construccion, y costaba una
+# generacion entera de x264 de mas.
+CUES=$(mktemp -d "${TMPDIR:-/tmp}/reel-cues-XXXXXX") || exit 1
+trap 'rm -rf "$CUES"' EXIT
+# --alto 1920: la caja y el interlineado van en pixeles y el rotulo se pinta
+# ya escalado. Sin decirlo, la caja quedaba pegada a las letras.
+VF_SUBS=$(python3 "$SUBS" "$VIDEO" --guion "$GUION" --salida /dev/null \
+            --solo-filtro --dir-textos "$CUES" --alto 1920) || exit $?
+SUBS_VF="$VF_SUBS" bash "$EXPORT" "$VIDEO" "$REELOUT" || exit $?
+rm -rf "$CUES"
+trap - EXIT
 echo "═══ REEL LISTO ═══"
-echo "    original: $VIDEO"
-echo "    subtitulado: $SUBOUT"
-echo "    reel 1080x1920: $REELOUT"
+echo "    montaje interno: $VIDEO"
+echo "    reel 1080x1920 subtitulado: $REELOUT"

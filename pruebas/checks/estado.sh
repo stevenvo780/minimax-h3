@@ -5,8 +5,8 @@ NOMBRE="estado"
 # se saca el patron pgrep de 478960b para el contraste de (D).  Van separados a
 # proposito: asi se puede apuntar RAIZ a un volcado de la version vieja en /tmp
 # sin que el check reviente con "not a git repository".
-RAIZ="${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}"
-REPO="${REPO:-/workspace/GeneracionDeVideos/minimax-h3}"
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
+REPO="${REPO:-$RAIZ}"
 FAIL=""
 
 TMP=$(mktemp -d /tmp/chk-estado.XXXXXX) || { echo "FALLA $NOMBRE: no se pudo crear tmp"; exit 1; }
@@ -25,16 +25,11 @@ export PATH="$TMP/stubbin:$PATH"
 FAKE="$TMP/md"
 mkdir -p "$FAKE/produccion/guiones" "$FAKE/produccion/obra/humo" \
          "$FAKE/produccion/obra/humob" "$FAKE/produccion/obra/humoc" \
-         "$FAKE/produccion/logs" \
-         "$FAKE/proyecto-minuto/shots" "$FAKE/proyecto-minuto/up-mp4" \
-         "$FAKE/proyecto-minuto/prompts" "$FAKE/proyecto-minuto/logs"
+         "$FAKE/produccion/logs"
 printf 'BROLL|paisaje de fondo\nBROLL|otra toma\n' > "$FAKE/produccion/guiones/humo.guion"
 printf 'HABLA|hola\nHABLA|mundo\n'                 > "$FAKE/produccion/guiones/humob.guion"
 printf 'HABLA|solo dialogo\nHABLA|sin b-roll\n'     > "$FAKE/produccion/guiones/humoc.guion"
 printf '3/7 - 1.23s/it\r'                          > "$FAKE/produccion/logs/humob-p1.log"
-printf 'prompt uno\n'      > "$FAKE/proyecto-minuto/prompts/s1.txt"
-printf 'prompt dos\n'      > "$FAKE/proyecto-minuto/prompts/s2.txt"
-printf '4/9 - 2.00s/it\r'  > "$FAKE/proyecto-minuto/logs/s1.log"
 
 # ── espejo de los scripts bajo prueba ─────────────────────────────────────
 # Se copian y se redirige su raiz de datos al arbol falso.  Sobre el codigo
@@ -44,9 +39,9 @@ printf '4/9 - 2.00s/it\r'  > "$FAKE/proyecto-minuto/logs/s1.log"
 # encuentra ningun guion, los bugs (A) y (B) no llegan a manifestarse y el check
 # daria PASA sobre codigo roto.
 ESP="$TMP/espejo"
-mkdir -p "$ESP/produccion" "$ESP/proyecto-minuto"
+mkdir -p "$ESP/produccion"
 [ -d "$RAIZ/lib" ] && cp -r "$RAIZ/lib" "$ESP/lib"
-for f in produccion/estado.sh proyecto-minuto/estado.sh; do
+for f in produccion/estado.sh; do
   [ -f "$RAIZ/$f" ] || { echo "FALLA $NOMBRE: no existe $RAIZ/$f"; exit 1; }
   sed "s|/home/stev/Modelos-IA/minimax-h3|$FAKE|g" "$RAIZ/$f" > "$ESP/$f"
   chmod +x "$ESP/$f"
@@ -99,10 +94,9 @@ grep -qEi 'invalid number|printf:' "$TMP/errA2.txt" && \
 #    mirando SU /proc/<pid>/cmdline: no se escanea la tabla de procesos, que
 #    con este check corriendo inline se casaria a si misma.
 # ════════════════════════════════════════════════════════════════════════
-mkdir -p "$TMP/dummy/produccion" "$TMP/dummy/proyecto-minuto"
+mkdir -p "$TMP/dummy/produccion"
 printf '#!/bin/bash\nsleep 20\n' > "$TMP/dummy/produccion/producir.sh"
-printf '#!/bin/bash\nsleep 20\n' > "$TMP/dummy/proyecto-minuto/generar.sh"
-chmod +x "$TMP/dummy/produccion/producir.sh" "$TMP/dummy/proyecto-minuto/generar.sh"
+chmod +x "$TMP/dummy/produccion/producir.sh"
 
 esperar_cmdline() {  # esperar_cmdline <pid> <texto-que-debe-contener>
   local pid="$1" txt="$2" i
@@ -117,25 +111,14 @@ esperar_cmdline() {  # esperar_cmdline <pid> <texto-que-debe-contener>
 
 # cmdline "bash producir.sh": casa "bash producir.sh" (478960b) y "producir\.sh"
 P1=$(cd "$TMP/dummy/produccion" && { bash producir.sh >/dev/null 2>&1 & echo $!; })
-# cmdline "bash <abs>/proyecto-minuto/generar.sh": casa "proyecto-minuto/generar.sh"
-# (478960b) y "[/ ]generar\.sh"
-bash "$TMP/dummy/proyecto-minuto/generar.sh" >/dev/null 2>&1 &
-P2=$!
-PIDS="$P1 $P2"
+PIDS="$P1"
 esperar_cmdline "$P1" "bash producir.sh" || \
   FAIL="${FAIL}(B) el senuelo producir.sh no llego a arrancar; "
-esperar_cmdline "$P2" "proyecto-minuto/generar.sh" || \
-  FAIL="${FAIL}(B) el senuelo generar.sh no llego a arrancar; "
 
 OUT_B=$(correr "$ESP/produccion/estado.sh" 7 humob 2>"$TMP/errB.txt")
 LINEA_GEN_B=$(printf '%s\n' "$OUT_B" | grep "generando:")
 printf '%s' "$LINEA_GEN_B" | grep -qE '3/7 - 1\.23s/it' || \
   FAIL="${FAIL}(B) produccion: no se uso \$STEPS (esperaba '3/7 - 1.23s/it' con STEPS=7) -> [$LINEA_GEN_B]; "
-
-OUT_C=$(correr "$ESP/proyecto-minuto/estado.sh" 9 2>"$TMP/errC.txt")
-LINEA_GEN_C=$(printf '%s\n' "$OUT_C" | grep "generando:")
-printf '%s' "$LINEA_GEN_C" | grep -qE '4/9 - 2\.00s/it' || \
-  FAIL="${FAIL}(B) proyecto-minuto: no se uso \$STEPS (esperaba '4/9 - 2.00s/it' con STEPS=9) -> [$LINEA_GEN_C]; "
 
 # ════════════════════════════════════════════════════════════════════════
 # D) el patron de pgrep casa ./script, "bash script" y ruta absoluta.
@@ -160,15 +143,12 @@ extraer_de_git() {  # extraer_de_git <ruta-en-el-repo> <pista>
 }
 
 PAT_PROD_NUEVO=$(extraer_patron_pgrep "$RAIZ/produccion/estado.sh" producir)
-PAT_MIN_NUEVO=$(extraer_patron_pgrep "$RAIZ/proyecto-minuto/estado.sh" generar)
 # Patrones de 478960b: del repo si hay git; si no, los literales conocidos, para
 # que el contraste siga existiendo aunque el arbol se copie sin historia.
 PAT_PROD_VIEJO=$(extraer_de_git produccion/estado.sh producir)
-PAT_MIN_VIEJO=$(extraer_de_git proyecto-minuto/estado.sh generar)
 [ -n "$PAT_PROD_VIEJO" ] || PAT_PROD_VIEJO='bash producir.sh'
-[ -n "$PAT_MIN_VIEJO" ]  || PAT_MIN_VIEJO='proyecto-minuto/generar.sh'
 
-if [ -z "$PAT_PROD_NUEVO" ] || [ -z "$PAT_MIN_NUEVO" ]; then
+if [ -z "$PAT_PROD_NUEVO" ]; then
   FAIL="${FAIL}(D) no se pudo extraer el patron pgrep de los scripts bajo prueba; "
 else
   for cmd in "./producir.sh" "bash producir.sh" \
@@ -176,21 +156,12 @@ else
     grep -qE -- "$PAT_PROD_NUEVO" <<<"$cmd" || \
       FAIL="${FAIL}(D) produccion: el patron [$PAT_PROD_NUEVO] no casa '$cmd'; "
   done
-  for cmd in "./generar.sh" "bash generar.sh" \
-             "bash /home/stev/Modelos-IA/minimax-h3/proyecto-minuto/generar.sh"; do
-    grep -qE -- "$PAT_MIN_NUEVO" <<<"$cmd" || \
-      FAIL="${FAIL}(D) proyecto-minuto: el patron [$PAT_MIN_NUEVO] no casa '$cmd'; "
-  done
   # Contraste: el patron de 478960b DEBE fallar en los casos que cubre el
   # arreglo.  Si ya casaba, la comprobacion de arriba no demostraria nada.
   grep -qE -- "$PAT_PROD_VIEJO" <<<"./producir.sh" && \
     FAIL="${FAIL}(D) el patron de 478960b ya casaba './producir.sh': el contraste no vale; "
   grep -qE -- "$PAT_PROD_VIEJO" <<<"bash /ruta/abs/produccion/producir.sh" && \
     FAIL="${FAIL}(D) el patron de 478960b ya casaba la ruta absoluta: el contraste no vale; "
-  grep -qE -- "$PAT_MIN_VIEJO" <<<"./generar.sh" && \
-    FAIL="${FAIL}(D) el patron de 478960b ya casaba './generar.sh': el contraste no vale; "
-  grep -qE -- "$PAT_MIN_VIEJO" <<<"bash generar.sh" && \
-    FAIL="${FAIL}(D) el patron de 478960b ya casaba 'bash generar.sh': el contraste no vale; "
 fi
 
 # ════════════════════════════════════════════════════════════════════════

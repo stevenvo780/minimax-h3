@@ -41,6 +41,7 @@ VALID_TYPES = (
 REQUIRED_HEADERS = ("ESCENA", "AMBIENTE", "MUSICA")
 HEADER_RE = re.compile(r"^@(TIPO|ESCENA|AMBIENTE|MUSICA)\s+(.+?)\s*$")
 LEGACY_ANCHOR_RE = re.compile(r"^ancla:anclas/[^/]+\.png$")
+FRAMES_FIELD_RE = re.compile(r"frames=([0-9]{1,9})")
 NUMERIC_ANCHOR_RE = re.compile(r"^ancla:([0-9]+)$")
 INT32_MAX = (1 << 31) - 1
 INT64_MAX = (1 << 63) - 1
@@ -197,16 +198,36 @@ def parse_script(text: str) -> tuple[dict[str, str], list[dict[str, Any]], list[
             continue
 
         if line.startswith("TOMA|") or line.startswith("HABLA|"):
-            fields = line.split("|")
-            if len(fields) < 2 or len(fields) > 6:
+            fields = [field.strip() for field in line.split("|")]
+            if len(fields) < 2 or len(fields) > 7:
                 raise PlanError(
-                    f"linea {line_number}: {fields[0]} admite entre 2 y 6 "
+                    f"linea {line_number}: {fields[0]} admite entre 2 y 7 "
                     f"campos, se recibieron {len(fields)}"
                 )
-            fields.extend([""] * (6 - len(fields)))
-            record, content, mode, take_type, scene, ambience = (
-                field.strip() for field in fields
-            )
+            record, content = fields[0], fields[1]
+            # 'frames=N' es un campo CON NOMBRE, no posicional: los campos 5 y
+            # 6 ya eran escena y ambiente propias, y una toma puede tener
+            # duracion propia sin tener escena propia. Un titular de ocho
+            # palabras no ocupa lo mismo que un parrafo de veintitres.
+            own_frames: int | None = None
+            positional: list[str] = []
+            for field in fields[2:]:
+                named = FRAMES_FIELD_RE.fullmatch(field)
+                if not named:
+                    positional.append(field)
+                    continue
+                if own_frames is not None:
+                    raise PlanError(
+                        f"linea {line_number}: 'frames=' repetido en la misma toma"
+                    )
+                own_frames = int(named.group(1))
+            if len(positional) > 4:
+                raise PlanError(
+                    f"linea {line_number}: demasiados campos posicionales "
+                    f"({len(positional)}; el maximo es modo, tipo, escena, ambiente)"
+                )
+            positional.extend([""] * (4 - len(positional)))
+            mode, take_type, scene, ambience = positional
             if not content:
                 raise PlanError(f"linea {line_number}: {record} sin contenido")
             raw_takes.append(
@@ -217,6 +238,7 @@ def parse_script(text: str) -> tuple[dict[str, str], list[dict[str, Any]], list[
                     "tipo_propio": take_type,
                     "escena_propia": scene,
                     "ambiente_propio": ambience,
+                    "frames_propios": own_frames,
                     "linea": line_number,
                 }
             )
@@ -267,6 +289,7 @@ def parse_script(text: str) -> tuple[dict[str, str], list[dict[str, Any]], list[
                 "ambiente": raw["ambiente_propio"] or headers["AMBIENTE"],
                 "musica": headers["MUSICA"],
                 "anchor_source": anchor_source,
+                "frames_propios": raw["frames_propios"],
             }
         )
 
@@ -336,21 +359,35 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
         "ambiente": headers["AMBIENTE"],
         "musica": headers["MUSICA"],
     }
-    take_duration = round(args.frames / args.fps, 6)
     takes: list[dict[str, Any]] = []
 
     for parsed in parsed_takes:
+        # 'frames_propios' se saca ANTES de construir la toma efectiva: si
+        # entrara en el diccionario cambiaria la huella de todos los guiones,
+        # incluidos los que no declaran duracion propia. Un guion de cuatro
+        # campos tiene que seguir dando el mismo plan byte a byte.
+        own_frames = parsed.pop("frames_propios", None)
+        take_frames = own_frames if own_frames else parameters["frames"]
+        if take_frames < 5 or (take_frames - 5) % 17:
+            raise PlanError(
+                f"toma {parsed['indice']}: frames={take_frames} no cumple 17k+5, "
+                "que es lo unico que acepta el modelo"
+            )
+        if take_frames > INT32_MAX:
+            raise PlanError(
+                f"toma {parsed['indice']}: frames={take_frames} fuera de rango"
+            )
         effective = {
             **parsed,
             "nombre": parameters["nombre"],
-            "frames": parameters["frames"],
+            "frames": take_frames,
             "width": parameters["width"],
             "height": parameters["height"],
             "steps": parameters["steps"],
             "fps": parameters["fps"],
             "semilla": parameters["seed"] + parsed["indice"],
             "model_id": parameters["model_id"],
-            "duracion_estimada_s": take_duration,
+            "duracion_estimada_s": round(take_frames / args.fps, 6),
         }
         material = {
             "schema": TAKE_SCHEMA,
@@ -368,7 +405,7 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
         "parametros": parameters,
         "tomas": takes,
         "warnings": warnings,
-        "duracion_estimada_s": round(args.frames * len(takes) / args.fps, 6),
+        "duracion_estimada_s": round(sum(t["duracion_estimada_s"] for t in takes), 6),
     }
     plan["run_fingerprint"] = fingerprint(plan)
     return plan

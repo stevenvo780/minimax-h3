@@ -5,7 +5,7 @@
 # sd_salida "$OUT" en vez de sd_salida "$OUT.mp4"): todos los planos habrian
 # reportado "FALLO DEFINITIVO". No se puede verificar contra el commit inicial
 # porque alli el bug no existia; se verifica mutando el codigo actual.
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 set -u
 NOMBRE="sd-salida"
 W=$(mktemp -d /tmp/chk-sdsalida-XXXXXX); trap 'rm -rf "$W"' EXIT

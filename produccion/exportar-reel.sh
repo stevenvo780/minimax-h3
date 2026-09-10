@@ -62,12 +62,16 @@ trap 'rm -f "$TMP"' EXIT
 # generado a 416x736 casi no recorta; un landscape heredado pierde laterales
 # (mejor eso que franjas negras que delatan el 16:9 en el feed).
 FILTRO="scale=${ANCHO}:${ALTO}:force_original_aspect_ratio=increase,crop=${ANCHO}:${ALTO},setsar=1"
+# SUBS_VF quema los subtitulos DESPUES de escalar, en esta misma pasada. Es la
+# diferencia entre un rotulo nitido a 1080p y uno dibujado a 416 px y ampliado
+# 2,6 veces; y ahorra una generacion completa de x264.
+[ -n "${SUBS_VF:-}" ] && FILTRO="$FILTRO,$SUBS_VF"
 
 echo "═══ export reel ${W}x${H} -> ${ANCHO}x${ALTO} ═══"
 if ! ff -v error -i "$IN" \
     -vf "$FILTRO" \
     -c:v libx264 -preset medium -crf "$CRF" -pix_fmt yuv420p \
-    -c:a aac -b:a 192k -ac 2 \
+    -c:a aac -b:a 192k -ac 2 -ar 48000 \
     -af "loudnorm=I=-14:TP=-1.5:LRA=11" \
     -movflags +faststart \
     -y "$TMP"

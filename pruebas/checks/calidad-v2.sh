@@ -1,6 +1,6 @@
 #!/bin/bash
 set -u
-RAIZ=${RAIZ:-/workspace/GeneracionDeVideos/minimax-h3}
+RAIZ=${RAIZ:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 nombre=calidad-v2
 exec 0</dev/null
 fallos=0

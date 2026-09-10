@@ -38,27 +38,27 @@ cuerpo = (
     "La oposicion voto en contra y anuncio un recurso. "
     "El gobierno cifra en ciento cincuenta mil los hogares afectados el primer año."
 )
-r = n.redactar(titular, cuerpo, seg_objetivo=12)
-origen = (titular + " " + cuerpo).lower()
-for frase in r["frases"]:
-    nucleo = frase.lower().rstrip(".!?…")
-    if nucleo not in origen.lower():
-        print("FALLA noticias-reel: frase inventada:", frase)
+r = n.redactar(titular, cuerpo, seg_max_toma=8.0, seg_objetivo=24)
+origen = titular + " " + cuerpo
+for toma in r["tomas"]:
+    if not n.redaccion.en_fuente(toma, origen):
+        print("FALLA noticias-reel: toma inventada:", toma)
         sys.exit(1)
-if r["frases"][0].rstrip(".") not in titular:
-    print("FALLA noticias-reel: el gancho no es el titular")
+if not r["tomas"][0].startswith(titular.rstrip(".")):
+    print("FALLA noticias-reel: el gancho no arranca con el titular")
     sys.exit(1)
-if r["palabras"] > int(12 * n.PALABRAS_POR_SEG) + 2:
-    print("FALLA noticias-reel: no recorto al presupuesto", r)
+if len(r["tomas"]) > 3:
+    print("FALLA noticias-reel: 24 s con tomas de 8 s no pueden ser", len(r["tomas"]))
     sys.exit(1)
 # EE.UU. no puede partir el titular.
 r2 = n.redactar(
     "EE.UU. impulsa conversaciones trilaterales con Rusia.",
     "El enviado de EE.UU. Steve Witkoff viajo a Kyiv.",
-    seg_objetivo=20,
+    seg_max_toma=8.0,
+    seg_objetivo=16,
 )
-if not r2["frases"][0].lower().startswith("ee.uu. impulsa"):
-    print("FALLA noticias-reel: EE.UU. partio el titular:", r2["frases"])
+if not r2["tomas"][0].lower().startswith("ee.uu. impulsa"):
+    print("FALLA noticias-reel: EE.UU. partio el titular:", r2["tomas"])
     sys.exit(1)
 # Un titular vacio tiene que rebotar.
 try:
@@ -138,7 +138,7 @@ assert "9:16" in c["escena"] or "Vertical" in c["escena"]
 assert "no readable text" in c["escena"].lower() or "no readable text" in c["escena"]
 PY
 
-# 4. Subtitulos: el filtro cae en zona segura y escapa el texto.
+# 4. Subtitulos: zona segura, texto completo y ancho que cabe en el cuadro.
 python3 "$RAIZ/produccion/subtitular.py" /dev/null \
   --texto "El congreso aprueba la ley. El tope entra en vigor." \
   --salida "$T/no.mp4" --solo-filtro > "$T/vf" || {
@@ -147,11 +147,71 @@ python3 "$RAIZ/produccion/subtitular.py" /dev/null \
 grep -q "drawtext=" "$T/vf" || falla "no hay drawtext"
 grep -q "y=h\*0.62" "$T/vf" || falla "los subtitulos no estan en y=h*0.62 (zona segura)"
 grep -q "fontfile=" "$T/vf" || falla "drawtext sin fontfile"
-# Un apostrofe o dos puntos no pueden romper el filtro.
+# El texto va en un fichero: con text='...' inline no hay salto de linea
+# portable y habia que aplastar dos lineas en una. Ojo con grep "text=": casa
+# con "drawtext=" y no prueba nada.
+grep -q "textfile=" "$T/vf" || falla "el filtro no usa textfile= (volveria a aplastar lineas)"
+
+# Ni una palabra se queda sin pintar, y ninguna linea se pasa del cuadro.
+python3 - "$RAIZ" <<'PY' || fallos=1
+import importlib.util, os, sys
+raiz = sys.argv[1]
+spec = importlib.util.spec_from_file_location(
+    "subtitular", os.path.join(raiz, "produccion", "subtitular.py"))
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+
+largo = ("Un avion de carga vinculado a Amazon se ha salido de la pista del "
+         "Aeropuerto Internacional de Miami tras aterrizar procedente de San Juan")
+cues = m.repartir(largo, 0.0, 8.0)
+pintado = " ".join(" ".join(t.split()) for _, _, t in cues)
+if pintado.split() != largo.split():
+    print("FALLA noticias-reel: el subtitulo pierde texto")
+    print("  esperado:", largo)
+    print("  pintado :", pintado)
+    sys.exit(1)
+for _, _, texto in cues:
+    lineas = texto.split("\n")
+    if len(lineas) > m.LINEAS_MAX:
+        print(f"FALLA noticias-reel: un cue con {len(lineas)} lineas"); sys.exit(1)
+    for ln in lineas:
+        if len(ln) > m.ANCHO_LINEA:
+            print(f"FALLA noticias-reel: linea de {len(ln)} caracteres, se sale: {ln}")
+            sys.exit(1)
+for i in range(1, len(cues)):
+    if cues[i][0] < cues[i - 1][0]:
+        print("FALLA noticias-reel: los cues no van en orden"); sys.exit(1)
+
+# La caja y el interlineado van en PIXELES y drawtext de ffmpeg 6.1 ignora las
+# expresiones en silencio. Como el rotulo se quema ya escalado a 1080x1920, si
+# no se escalan estos numeros la caja queda pegada a las letras.
+import tempfile
+with tempfile.TemporaryDirectory() as tmp:
+    f736 = m.filtro(cues, "/tmp/f.ttf", tmp, 736)
+    f1920 = m.filtro(cues, "/tmp/f.ttf", tmp, 1920)
+for campo, pequeno, grande in (("boxborderw", f736, f1920), ("line_spacing", f736, f1920)):
+    import re as _re
+    a = int(_re.search(campo + r"=([0-9]+)", pequeno).group(1))
+    b = int(_re.search(campo + r"=([0-9]+)", grande).group(1))
+    if b <= a:
+        print(f"FALLA noticias-reel: {campo} no escala con el alto ({a} -> {b})")
+        sys.exit(1)
+if "h*" in _re.search(r"boxborderw=[^:]*", f1920).group(0):
+    print("FALLA noticias-reel: boxborderw con expresion; ffmpeg 6.1 la ignora y pinta 0")
+    sys.exit(1)
+# El ancho maximo de una linea tiene que caber en un cuadro 9:16 con margen.
+# 0,66 em por caracter medido sobre DejaVu Sans Bold en un fotograma real.
+ancho_px = m.ANCHO_LINEA * 0.66 * m.ALTURA_FUENTE * 1920
+borde = int(_re.search(r"boxborderw=([0-9]+)", f1920).group(1))
+if ancho_px + 2 * borde > 1080 * 0.95:
+    print(f"FALLA noticias-reel: la caja mide {ancho_px + 2 * borde:.0f} px en un cuadro de 1080")
+    sys.exit(1)
+PY
+
+# Un apostrofe, dos puntos, un porcentaje o una barra no pueden romper nada.
 python3 "$RAIZ/produccion/subtitular.py" /dev/null \
-  --texto "Atencion: 'hoy' se vota." --salida "$T/no.mp4" --solo-filtro \
-  > "$T/vf2" || falla "subtitular no escapo el texto con : y comillas"
-grep -q "text=" "$T/vf2" || falla "el filtro escapado no tiene text="
+  --texto "Atencion: 'hoy' se vota el 43,8% \\ del total." --salida "$T/no.mp4" \
+  --solo-filtro > "$T/vf2" || falla "subtitular fallo con caracteres hostiles"
+grep -q "drawtext=" "$T/vf2" || falla "el filtro con caracteres hostiles no tiene drawtext"
 
 if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
   # Clip minimo 9:16 con audio. Sin GPU.
@@ -165,6 +225,12 @@ if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
       --texto "El congreso aprueba la ley." --salida "$T/subs.mp4" \
       || falla "subtitular no quemo el clip de prueba"
     [ -s "$T/subs.mp4" ] || falla "el mp4 subtitulado esta vacio"
+    # Texto hostil quemado de verdad, no solo el filtro impreso.
+    python3 "$RAIZ/produccion/subtitular.py" "$T/in.mp4" \
+      --texto "Atencion: 'hoy' se vota el 43,8% del total, dice la juez." \
+      --salida "$T/hostil.mp4" \
+      || falla "subtitular no pudo quemar texto con : ' y %"
+    [ -s "$T/hostil.mp4" ] || falla "el mp4 con texto hostil esta vacio"
     bash "$RAIZ/produccion/exportar-reel.sh" "$T/subs.mp4" "$T/reel.mp4" \
       || falla "exportar-reel.sh fallo"
     WH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
@@ -194,7 +260,10 @@ fi
 [ -f "$RAIZ/produccion/guiones/noticias/generados/chkdemo.guion" ] \
   || [ -f "$RAIZ/produccion/guiones/noticias/chkdemo.guion" ] \
   || falla "SOLO_GUION no escribio el guion"
+# El sidecar .fuente.json tambien: si no, cada pasada del check deja un
+# fichero nuevo en el arbol y "los checks no han ensuciado el repo" falla.
 rm -f "$RAIZ/produccion/guiones/noticias/generados/chkdemo.guion" \
+      "$RAIZ/produccion/guiones/noticias/generados/chkdemo.guion.fuente.json" \
       "$RAIZ/produccion/guiones/noticias/chkdemo.guion"
 
 # VALIDAR=1 del wrapper atraviesa producir-anclado.sh, que exige ffmpeg
@@ -211,6 +280,7 @@ if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
   fi
   rm -rf "$RAIZ/produccion/obra/chkvalidar"
   rm -f "$RAIZ/produccion/guiones/noticias/generados/chkvalidar.guion" \
+        "$RAIZ/produccion/guiones/noticias/generados/chkvalidar.guion.fuente.json" \
         "$RAIZ/produccion/guiones/noticias/chkvalidar.guion"
 fi
 
@@ -224,12 +294,11 @@ def load(name, path):
 inv = load("investigar", os.path.join(raiz, "harness", "investigar.py"))
 noti = load("noticias", os.path.join(raiz, "harness", "noticias.py"))
 item = inv.elegir("avion amazon miami")
-r = noti.redactar(item["titular"], item["cuerpo"], seg_objetivo=16)
-origen = (item["titular"] + " " + item["cuerpo"]).lower()
-for frase in r["frases"]:
-    nucleo = frase.lower().rstrip(".!?…")
-    if nucleo not in origen:
-        print("FALLA noticias-reel: frase inventada sobre fuente investigada:", frase)
+r = noti.redactar(item["titular"], item["cuerpo"], seg_max_toma=8.0, seg_objetivo=32)
+origen = item["titular"] + " " + item["cuerpo"]
+for toma in r["tomas"]:
+    if not noti.redaccion.en_fuente(toma, origen):
+        print("FALLA noticias-reel: toma inventada sobre fuente investigada:", toma)
         sys.exit(1)
 if not item.get("fuente", "").startswith("http"):
     print("FALLA noticias-reel: la noticia investigada no trae URL de fuente")
@@ -255,18 +324,19 @@ SOLO_GUION=1 bash "$RAIZ/produccion/reel-noticias.sh" \
 tomas2=$(awk -F'|' '/^TOMA\|/{print $2}' "$G1")
 [ "$tomas1" = "$tomas2" ] || falla "dos corridas --tema produjeron TOMA distintas"
 # las TOMA habladas son substring de la fuente
-python3 - "$G1" "$G1.fuente.json" <<'PY' || fallos=1
-import json, sys
+python3 - "$G1" "$G1.fuente.json" "$RAIZ" <<'PY' || fallos=1
+import json, sys, os
+sys.path.insert(0, os.path.join(sys.argv[3], "harness"))
+import redaccion
 guion=open(sys.argv[1],encoding="utf-8").read()
 src=json.load(open(sys.argv[2],encoding="utf-8"))
-origen=(src["titular"]+" "+src["cuerpo"]).lower()
+origen=src["titular"]+" "+src["cuerpo"]
 for line in guion.splitlines():
     if not line.startswith("TOMA|"): continue
     campos=line.split("|")
     tipo=campos[3].strip() if len(campos)>3 else ""
     if tipo and tipo not in {"habla","informativo"}: continue
-    nucleo=campos[1].strip().lower().rstrip(".!?…")
-    if nucleo not in origen:
+    if not redaccion.en_fuente(campos[1].strip(), origen):
         print("FALLA noticias-reel: TOMA no esta en la fuente:", campos[1])
         sys.exit(1)
 PY

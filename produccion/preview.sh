@@ -27,7 +27,7 @@ publicar() {
     case "$TIPO" in
       HABLA) idx=$((idx+1)); local p=$(printf "p%02d" $idx)
              [ -f "$V/$p.mp4" ] && { echo "file '$V/$p.mp4'" >> "$lista"; n=$((n+1)); } ;;
-      BROLL) local src="$MD/proyecto-minuto/$CONT"
+      BROLL) local src="$MD/produccion/apoyos/$CONT"
              if [ -f "$src" ]; then
                local bb=$(basename "$src" .avi)
                [ -f "$V/broll-$bb.mp4" ] || ff -y -v error -i "$src" -c:v libx264 -preset fast \
