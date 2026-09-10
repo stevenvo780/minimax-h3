@@ -399,5 +399,42 @@ if [ "$FALLOS" -ne 0 ]; then
   echo "FALLA $NOMBRE: $FALLOS comprobacion(es) fallida(s)"
   exit 1
 fi
+
+# ── PUNCH_ALTERNO: el encuadre alterno que hace legible el corte ───────────
+# Dos tomas seguidas del mismo plano con la boca abierta a ambos lados no se
+# pueden unir bien: el corte duro salta y el fundido superpone dos bocas. Lo
+# que funciona es que el corte parezca intencionado, y para eso las tomas
+# pares se cierran un poco. Aqui se comprueba que el punch NO cambia las
+# dimensiones (si lo hiciera, validar_compatibilidad rechazaria el montaje) y
+# que solo toca las tomas pares.
+T_PUNCH=$(mktemp -d "${TMPDIR:-/tmp}/chk-punch-XXXXXX") || exit 1
+trap 'rm -rf "$T_PUNCH"' EXIT
+for n in 01 02 03; do
+  ffmpeg -nostdin -y -v error \
+    -f lavfi -i "testsrc2=s=416x736:d=1:r=24" \
+    -f lavfi -i "sine=frequency=440:duration=1" \
+    -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac -ar 48000 \
+    "$T_PUNCH/$n.mp4" 2>/dev/null || { echo "FALLA fundir: no pude fabricar clips"; exit 1; }
+done
+printf '02\n03\n' > "$T_PUNCH/tramos.txt"
+if ! PUNCH_ALTERNO=1.09 TRANSICION=corte python3 "$RAIZ/produccion/fundir.py" \
+      "$T_PUNCH" "$T_PUNCH/salida.mp4" > "$T_PUNCH/log" 2>&1; then
+  echo "FALLA fundir: el punch alterno fallo"; sed -n '1,5p' "$T_PUNCH/log"; exit 1
+fi
+grep -q "punch alterno" "$T_PUNCH/log" || { echo "FALLA fundir: no anuncio el punch"; exit 1; }
+[ -f "$T_PUNCH/02-punch.mp4" ] || { echo "FALLA fundir: no puncho la toma par"; exit 1; }
+[ -f "$T_PUNCH/01-punch.mp4" ] && { echo "FALLA fundir: puncho una toma impar"; exit 1; }
+WH=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$T_PUNCH/02-punch.mp4")
+[ "$WH" = "416,736" ] || { echo "FALLA fundir: el punch cambio las dimensiones a $WH"; exit 1; }
+WH2=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$T_PUNCH/salida.mp4")
+[ "$WH2" = "416,736" ] || { echo "FALLA fundir: el montaje con punch salio $WH2"; exit 1; }
+# Fuera de rango se rechaza en vez de aceptarse en silencio.
+if PUNCH_ALTERNO=2.0 TRANSICION=corte python3 "$RAIZ/produccion/fundir.py" \
+     "$T_PUNCH" "$T_PUNCH/no.mp4" >/dev/null 2>&1; then
+  echo "FALLA fundir: acepto PUNCH_ALTERNO=2.0"; exit 1
+fi
+
+
+
 echo "PASA $NOMBRE"
 exit 0

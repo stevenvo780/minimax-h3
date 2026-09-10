@@ -436,6 +436,48 @@ def grupos_desde_fronteras(clips: list[Path], fronteras: set[str]) -> list[list[
     return grupos
 
 
+def aplicar_punch(clips: list[Path], factor: float) -> list[Path]:
+    """Cierra el encuadre de las tomas PARES un `factor`, dejando las impares.
+
+    Por que existe: dos tomas seguidas del mismo plano, con el mismo encuadre
+    y la boca abierta a ambos lados, no se pueden unir bien. El corte duro se
+    lee como salto y el fundido superpone dos bocas distintas, que es peor:
+    parece un fallo, no una transicion. Medido sobre la primera tanda, ninguna
+    toma tiene cola muda —el modelo estira la locucion hasta llenar la toma
+    que se le pide— asi que no hay forma de llegar al corte con la boca quieta.
+
+    Lo que si funciona es que el corte PAREZCA intencionado. Un cambio de
+    tamano claro entre toma y toma es el lenguaje normal de un reel, y el ojo
+    lo acepta como edicion. Se alterna en vez de acumular para que el recorte
+    no crezca con el numero de tomas: la quinta toma de una pieza se veria
+    notablemente mas blanda que la primera.
+
+    El clip punchado sustituye al original en el montaje; el fichero de la
+    obra no se toca.
+    """
+    if factor <= 1.0:
+        return clips
+    salida = []
+    for indice, clip in enumerate(clips):
+        if indice % 2 == 0:
+            salida.append(clip)
+            continue
+        destino = clip.with_name(f"{clip.stem}-punch{clip.suffix}")
+        ejecutar(
+            [
+                "ffmpeg", "-nostdin", "-y", "-v", "error",
+                "-i", str(clip),
+                "-vf", f"scale=iw*{factor:.4f}:ih*{factor:.4f},crop=iw/{factor:.4f}:ih/{factor:.4f}",
+                "-c:v", "libx264", "-preset", "slow", "-crf", "17",
+                "-pix_fmt", "yuv420p", "-c:a", "copy",
+                str(destino),
+            ],
+            f"cerrar el encuadre de '{clip.name}' a {factor:.2f}x",
+        )
+        salida.append(destino)
+    return salida
+
+
 def leer_fronteras(montaje: Path, clips: list[Path]) -> set[str]:
     ruta = montaje / "tramos.txt"
     if not ruta.exists():
@@ -676,10 +718,22 @@ def principal(argumentos: list[str]) -> int:
             os.environ.get("DURACION_TRANSICION", "0.5"), "DURACION_TRANSICION"
         )
 
+    punch = float(os.environ.get("PUNCH_ALTERNO", "1.0"))
+    if punch < 1.0 or punch > 1.5:
+        error(f"PUNCH_ALTERNO fuera de rango: {punch} (1.0 = sin punch)")
+
     clips = sorted(Path(nombre) for nombre in glob.glob(str(montaje / "[0-9][0-9].mp4")))
     if not clips:
         error(f"no se encontraron clips NN.mp4 en '{montaje}'")
     fronteras = leer_fronteras(montaje, clips)
+    if punch > 1.0:
+        originales = list(clips)
+        clips = aplicar_punch(clips, punch)
+        # Las tomas punchadas cambian de nombre, asi que las fronteras de
+        # tramo tienen que seguirlas.
+        renombre = {viejo.stem: nuevo.stem for viejo, nuevo in zip(originales, clips)}
+        fronteras = {renombre.get(f, f) for f in fronteras}
+        print(f"  encuadre: tomas pares cerradas a {punch:.2f}x (punch alterno)")
     infos_clips = [sondear(clip) for clip in clips]
     validar_compatibilidad(infos_clips)
     infos_por_clip = {info["archivo"]: info for info in infos_clips}
