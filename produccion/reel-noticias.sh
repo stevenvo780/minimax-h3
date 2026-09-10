@@ -206,7 +206,13 @@ fi
 bash "$RUNNER" "$GUION" "$NOMBRE" "$FRAMES" "$ANCHO" "$ALTO" "$PASOS" || exit $?
 OBRA=$MD/produccion/obra/$NOMBRE
 if [ -d "$OBRA" ]; then
-  cp -n "$GUION" "$OBRA/entrada.guion" 2>/dev/null || cp "$GUION" "$OBRA/entrada.guion"
+  # 'cp' a secas, no 'cp -n'. cp -n DEVUELVE 0 cuando se niega a sobrescribir,
+  # asi que el '|| cp' de reserva que habia aqui era codigo muerto y, al
+  # reproducir una obra que ya existia, entrada.guion se quedaba con el guion
+  # de la corrida ANTERIOR. No es cosmetico: sondear-dia.sh verifica cada TOMA
+  # contra la fuente leyendo justo ese fichero, asi que comprobaba un texto que
+  # no era el que se dijo, y la procedencia de la obra mentia.
+  cp "$GUION" "$OBRA/entrada.guion" || exit 1
   if [ -f "$GUION.fuente.json" ]; then
     cp "$GUION.fuente.json" "$OBRA/fuente.json"
   fi
