@@ -888,7 +888,14 @@ for i in $(seq 1 "$N"); do
       `# nada, el AAC salia a 96 kHz desde un master PCM de 32 kHz. El doble` \
       `# de datos para nada, y fuera de lo que un movil espera.` \
       -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p \
-      -c:a aac -b:a 192k -ar 48000 "$MONT/$n.mp4"; then
+      `# -shortest recorta el audio al final del VIDEO. El AAC redondea a` \
+      `# tramas de 1024 muestras, asi que una toma cuya duracion no cae en` \
+      `# una trama entera sale con audio mas largo que su imagen: 90 f son` \
+      `# 3,7500 s de video y 3,8000 s de contenedor. Con eso, el concat` \
+      `# produce una linea de tiempo irregular (ffprobe la lee como 120 fps)` \
+      `# y fundir.py rechaza el montaje, correctamente. No pasaba cuando` \
+      `# todas las tomas eran de 192 f = 8,0000 s = 375 tramas exactas.` \
+      -c:a aac -b:a 192k -ar 48000 -shortest "$MONT/$n.mp4"; then
     echo "FALLO: no pude procesar la toma $i; conservo todas las tomas y no publico" >&2
     exit 1
   fi

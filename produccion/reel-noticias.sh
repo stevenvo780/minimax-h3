@@ -180,6 +180,20 @@ if [ -z "${ANCLA_NEUTRAL:-}" ]; then
   fi
 fi
 
+# ── transicion entre tomas ─────────────────────────────────────────────────
+# El corte duro entre dos tomas del mismo plano se ve muchisimo: medido sobre
+# la primera tanda, el salto de imagen en la union es de 18,5 y 15,8 frente a
+# una mediana de 0,76 dentro de la toma —24 veces un fotograma normal— y son
+# los dos mayores saltos de todo el video. Dos causas: no hay transicion, y la
+# luminancia deriva hasta 14 puntos DENTRO de cada toma, asi que igualar
+# medianas de toma no quita el escalon en la frontera.
+#
+# 0,25 s lo baja a 8x. No hay fantasma al mezclar porque el anclaje mantiene
+# el encuadre: entre el ultimo fotograma de una toma y el primero de la
+# siguiente la cara se mueve 2 px y cambia de tamaño un 0,6%.
+export TRANSICION=${TRANSICION:-fundido}
+export DURACION_TRANSICION=${DURACION_TRANSICION:-0.25}
+
 # VALIDAR atraviesa el runner real. No se llama a sd-cli.
 if [ "${VALIDAR:-0}" = 1 ]; then
   VALIDAR=1 bash "$RUNNER" "$GUION" "$NOMBRE" "$FRAMES" "$ANCHO" "$ALTO" "$PASOS"
