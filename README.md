@@ -271,30 +271,6 @@ si hay una única cara persistente, suficientemente nítida y con pose/boca neut
 JSON lateral forman parte de las huellas de reanudación. Si el selector o el modelo faltan, la
 producción falla: no cae silenciosamente al fotograma histórico.
 
-### Comparar candidatos sin tocar la obra
-
-Una variación de semilla, prompt, modelo o ancla se genera en un banco direccionado por
-contenido. Cada candidato es inmutable y lleva receta, SHA-256 y validación técnica:
-
-```bash
-produccion/generar-candidato.sh \
-  --plan produccion/obra/mi-obra/plan.json --toma 3 \
-  --modelo modelos/diffusion_models/minimax_h3_fl2va_pruned-Q4_K_M.gguf \
-  --steps 20 --seed 303
-
-python3 harness/candidatos.py listar produccion/candidatos/mi-obra
-python3 harness/candidatos.py seleccionar RUTA_CANDIDATO \
-  --output produccion/obra/mi-obra/selecciones/t03.json --note "promoción revisada"
-python3 harness/candidatos.py preparar \
-  produccion/obra/mi-obra/selecciones/t03.json \
-  --output produccion/obra/mi-obra/t03.avi
-```
-
-El generador serializa el uso de GPU y vuelve a comprobar el ancla antes y después del trabajo;
-una mutación concurrente no puede entrar en una receta publicada. Para B-roll que debe ser
-deliberadamente estático, `produccion/estabilizar-plano.sh` deriva desde un fotograma elegido una
-toma MJPEG+PCM determinista con grano luma sutil, duración/FPS exactos y manifiesto verificable.
-
 ## Otros puntos de entrada
 
 | Script | Para qué |
@@ -318,16 +294,12 @@ en el retrato apaisado. En 9:16 esa ventana cae sobre cuello y camisa, así que
 sus números no significan lo mismo para un reel. Sirve para comparar dos tomas
 del mismo formato, no para dar un reel por bueno.
 
-Antes de entregar una obra completa, el gate recomendado es V2 y debe recibir tanto el plan
-como el montaje real:
-
-```bash
-calidad/v2/evaluar.sh produccion/obra/mi-obra \
-  --plan produccion/obra/mi-obra/plan.json \
-  --montage produccion/obra/mi-obra/final.mp4 \
-  --transition-style cut \
-  --output produccion/obra/mi-obra/calidad-v2.json
-```
+No hay puerta de calidad automatica en el camino del reel: lo que se publica es
+lo que sale. `calidad/auditar.py` y `calidad/revisar.py` son herramientas de
+MIRAR, a mano y despues. El evaluador v2 —YuNet + SFace + ASR con informe
+verificable— existio y se retiro: nunca se enchufo a produccion, y su ASR
+depende del filtro `whisper`, que existe desde ffmpeg 8.0. Esta en el historial
+de git si se quiere recuperar y cablear de verdad.
 
 V2 valida integridad y decodificación completa, correspondencia densa entre montaje y fuentes,
 orden del plan, temporalidad por tipo de toma, YuNet/SFace, ASR por ventanas, cola vocal limpia
@@ -378,21 +350,6 @@ Cada check vive en `pruebas/checks/<nombre>.sh`, es autocontenido y se puede cor
 | `cerrojo-generacion` | exclusión real, argumentos/stdio/RC y timeout del `sd-cli` |
 | `ui-segura` | catálogo, estado durable, límites HTTP, rutas de vídeo y rangos |
 | `ordenar-seguro` | simulación y archivo recuperable sin tocar material personal |
-
-## Ordenar los vídeos
-
-```bash
-herramientas/ordenar-videos.sh            # enseña qué haría, sin tocar nada
-herramientas/ordenar-videos.sh --hazlo    # deja a la vista solo la pieza actual
-herramientas/ordenar-videos.sh --hazlo mi-obra  # conserva la más nueva que coincida
-```
-
-Archiva por defecto en `$DEST/archivo-minimax/` todo menos la salida válida más reciente; si
-se da un filtro, conserva la más reciente que coincida. `ARCHIVO_DEST` permite elegir otra
-ubicación. No borra ni sobrescribe: sólo mueve un MP4 si su nombre es ASCII y tiene el sidecar
-`.minimax-h3.json` publicado por el runner, con un SHA-256 que todavía coincide. Mueve juntos
-vídeo y manifiesto; directorios, enlaces, colisiones, entregas antiguas sin procedencia demostrable
-y vídeos personales quedan quietos.
 
 ## Lo que degrada la imagen, medido
 
@@ -536,30 +493,26 @@ lib/                  lo compartido — el único sitio con rutas
   vram.sh             presupuesto de VRAM adaptativo
   prompt.sh           tipos de plano y cuáles llevan voz (PROMPT_TIPOS_VOZ)
 
-harness/              TEXTO → GUION
+noticias/dia/         LA ENTRADA: la noticia en crudo, con TITULAR y FUENTE.
+                      La leen las dos mitades: el reel y el carrusel
+
+harness/              NOTICIA → INSTRUCCIONES DE GENERACIÓN
   redaccion.py        noticia → tomas decibles: mide, no corta frases, no repite
   noticias.py         lee la noticia (fichero, RSS o argumentos) y escribe el .guion
   investigar.py       de un TEMA a la noticia del catálogo del día
   componer.py         tomas + categoría → .guion, con el ritmo de planos
   planificar.py       compila .guion a un plan JSON canónico y reproducible
-  candidatos.py       verifica, selecciona y prepara candidatos por contenido
-  estabilizar_plano.py motor reproducible del estabilizador de B-roll
   categorias/         noticias.json — el mundo audiovisual del reel
 
 produccion/           GUION → VÍDEO
   reel-noticias.sh     EL CAMINO COMPLETO: guion → tomas → subtítulos → 1080×1920
   tanda-noticias-dia.sh todo noticias/dia/, en serie, un cerrojo
   producir-anclado.sh  plan + tomas ancladas + reanudación verificada + montaje
-  producir.sh          runner anterior, sin anclaje (HABLA|, p*.avi)
   subtitular.py        cues por toma, sin truncar, a la resolución final
   exportar-reel.sh     9:16, yuv420p, +faststart, −14 LUFS, y quema el rótulo
   sondear-dia.sh       ACEPTACIÓN: que lo entregado sea un reel, no el montaje
-  generar-candidato.sh variantes inmutables sin modificar la obra base
-  estabilizar-plano.sh B-roll estático determinista con manifiesto
   escalar.sh           RealESRGAN x4 y remonte a 1080p (no está en el reel)
   lazo.sh              itera semillas hasta una meta
-  noticias/dia/        el catálogo de noticias del día, con FUENTE
-  apoyos/              planos de apoyo ya generados, para BROLL|
   guiones/             el ejemplo versionado; los generados no se versionan
   obra/<nombre>/       tomas, anclas y montaje (resumible)
 
@@ -574,14 +527,11 @@ calidad/              VÍDEO → INFORME
                        ninguna métrica (manos, identidad, continuidad)
   seleccionar-ancla.py elige un frame neutral con YuNet y evidencia JSON
   preparar-modelos-evaluacion.sh instala modelos locales con SHA fijado
-  v2/                  gate de obra, montaje, identidad, ASR y audio.
-                       NO está enchufado al reel, y su ASR necesita
-                       ffmpeg ≥ 8.0 con el filtro whisper
 
 herramientas/         piezas sueltas de un solo uso
   guardian-vram.sh     corta la generación si baja el margen de GPU del usuario
   h3.sh                un clip para probar un prompt
-  generar-1080p.sh · ordenar-videos.sh
+  generar-1080p.sh
 
 videos/               LO QUE SE ENTREGA
   entregas/           piezas buenas + sidecar verificable (DEST por defecto)

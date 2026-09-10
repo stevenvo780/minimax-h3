@@ -41,17 +41,9 @@ descargar_fijado \
     face_detection_yunet_2023mar.onnx \
     https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx \
     8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
-descargar_fijado \
-    face_recognition_sface_2021dec.onnx \
-    https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx \
-    0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79
-descargar_fijado \
-    ggml-small.bin \
-    https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin \
-    1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b
-descargar_fijado \
-    ggml-silero-v6.2.0.bin \
-    https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin \
-    2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987
+# SFace, whisper y silero los descargaba este script para el evaluador v2, que
+# ya no existe: 503 MB que nada leia. YuNet SI se queda, porque lo usa
+# calidad/seleccionar-ancla.py, que corre EN CALIENTE durante la generacion
+# para elegir el fotograma de ancla de cada toma.
 
-printf '\nEvaluador listo. Ejecutalo con:\n  %s/bin/python calidad/v2/evaluar_obra.py --help\n' "$VENV"
+printf '\nSelector de ancla listo. Compruebalo con:\n  %s/bin/python calidad/seleccionar-ancla.py --help\n' "$VENV"
