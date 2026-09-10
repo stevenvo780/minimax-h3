@@ -109,7 +109,21 @@ DIR=$MD/produccion/guiones/noticias/generados
 mkdir -p "$DIR" || exit 1
 GUION=$DIR/${NOMBRE}.guion
 
+# UNA_TOMA=1 (por defecto): toda la noticia en un plano continuo. El corte
+# entre dos tomas del mismo plano no se puede hacer invisible —ninguna llega
+# al corte con la boca cerrada, porque el modelo estira la locucion hasta
+# llenar la toma— asi que la unica forma de que no se note es que no exista.
+#
+# El precio es resolucion: el buffer cuesta 28,75 MiB por fotograma a 416x736
+# (medido con sonda-duracion.sh, cinco puntos, perfectamente lineal), asi que
+# una noticia larga baja de tamaño para caber entera. Con 13,4 GB libres:
+# 11,5 s caben a 416x736 y 23,6 s piden bajar a 352x640.
+FORMATO=$DIR/${NOMBRE}.formato
 ARGS=(--guion "$GUION" --seg-objetivo "$SEG_OBJ" --seg-por-toma "$SEG_TOMA" --categoria noticias)
+if [ "${UNA_TOMA:-1}" = 1 ]; then
+  LIBRE=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits 2>/dev/null | head -1)
+  ARGS+=(--una-toma --vram-libre "${LIBRE:-13400}" --formato-salida "$FORMATO")
+fi
 [ -n "$RITMO" ] && ARGS+=(--ritmo "$RITMO")
 if [ -n "$TEMA" ]; then
   FICHERO=$DIR/${NOMBRE}.noticia.txt
@@ -130,6 +144,12 @@ fi
 echo "═══ reel de noticias · $NOMBRE · ${ANCHO}x${ALTO} · ${FRAMES} f ═══"
 python3 "$NOTICIAS" "${ARGS[@]}" || exit $?
 [ -f "$GUION" ] || { echo "no se escribio el guion" >&2; exit 1; }
+# El formato lo decide la locucion, no la categoria: se lee lo que escribio
+# harness/noticias.py y pisa el ANCHO/ALTO/FRAMES del JSON.
+if [ "${UNA_TOMA:-1}" = 1 ] && [ -f "$FORMATO" ]; then
+  . "$FORMATO"
+  echo "  formato de esta pieza: ${ANCHO}x${ALTO} · ${FRAMES} f · $(awk -v f="$FRAMES" 'BEGIN{printf "%.1f", f/24}') s en UNA toma"
+fi
 # La fuente viaja junto al guion: el verificador compara TOMA| contra este texto.
 if [ -n "$FICHERO" ] && [ -f "$FICHERO" ]; then
   python3 - "$FICHERO" "$GUION" "$NOTICIAS" <<'PY' || exit 1

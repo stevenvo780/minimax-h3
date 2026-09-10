@@ -337,6 +337,8 @@ def guionizar(
     tomas_max: int = 8,
     repeticion_max: float = 0.55,
     nuevas_min: int = 3,
+    frames_max: int | None = None,
+    una_toma: bool = False,
 ) -> dict:
     """titular + cuerpo -> las tomas de un reel, cada una con SU duracion.
 
@@ -357,8 +359,16 @@ def guionizar(
     # dura lo que su texto. Pedir tomas cortas y ademas recortar el texto a esa
     # longitud tiraba frases enteras —incluido el titular, que es el gancho— y
     # ya no hace falta, porque una toma corta se consigue con menos fotogramas.
-    seg_max_toma = min(seg_max_toma, FRAMES_MAX / FPS)
-    capacidad = seg_max_toma * PALABRAS_POR_SEG
+    techo = frames_max if frames_max else FRAMES_MAX
+    seg_max_toma = min(seg_max_toma, techo / FPS)
+    # La vara con la que se ELIGE el texto es fija, y no la duracion de la
+    # toma. Si se deja que crezca con la toma, `acortar` conserva frases mas
+    # largas, esas frases traen mas palabras nuevas y la entradilla repetida
+    # vuelve a pasar el filtro: medido, con una toma de 60 s la pieza de Ceuta
+    # pasaba de 33 palabras a 128 y decia dos veces lo de la juez. Que se diga
+    # de corrido o en tres cortes es una decision de capacidad; QUE se dice es
+    # una decision editorial, y no puede depender de cuanta VRAM haya.
+    capacidad = min(seg_max_toma, SEG_REFERENCIA) * PALABRAS_POR_SEG
     tope = max(6, int(capacidad * HOLGURA))
     suelo = max(4, int(capacidad * SUELO_REL))
     minimo_corte = max(6, int(capacidad * 0.45))
@@ -399,7 +409,7 @@ def guionizar(
         if not actual:
             return
         toma = " ".join(actual)
-        f = frames_para(toma)
+        f = frames_para(toma, maximo=techo)
         tomas.append(toma)
         frames.append(f)
         duracion += f / FPS
@@ -446,7 +456,7 @@ def guionizar(
             carga = contenido(unidad)
 
         peso = len(palabras(unidad))
-        if actual and n_actual + peso > tope:
+        if actual and not una_toma and n_actual + peso > tope:
             cerrar_toma()
             if lleno():
                 break
@@ -456,7 +466,7 @@ def guionizar(
         dichas_fichas.extend(_fichas(unidad))
         # Si ya no cabe nada mas, la toma esta llena: cerrarla aqui evita
         # arrastrar una unidad entera a la siguiente.
-        if n_actual >= suelo and n_actual + minimo_corte > tope:
+        if not una_toma and n_actual >= suelo and n_actual + minimo_corte > tope:
             cerrar_toma()
     if not lleno():
         cerrar_toma()
@@ -501,7 +511,71 @@ def guionizar(
 # extrapolar.
 FPS = 24
 FRAMES_MIN = 73
-FRAMES_MAX = 192
+# Techo por defecto. Ya no es una constante de fe: se mide con
+# produccion/sonda-duracion.sh y formato_una_toma() lo recalcula por pieza.
+FRAMES_MAX = 396
+# Duracion de referencia con la que se recortan y se filtran las frases. Es la
+# toma con la que se valido el texto de las cinco noticias del dia; cambiarla
+# cambia QUE se dice, no solo como se reparte.
+SEG_REFERENCIA = 8.0
+
+# ── Cuanto vídeo cabe en la GPU ────────────────────────────────────────────
+# Medido con la sonda de duracion el 2026-09-10 a 416x736, cinco puntos:
+#
+#   192 f -> 6.232 MiB     345 f -> 10.651 MiB
+#   243 f -> 7.695 MiB     396 f -> 12.114 MiB   <- el ultimo que cabe
+#   294 f -> 9.166 MiB     447 f -> NO CABE
+#
+# Perfectamente lineal: 28,75 MiB por fotograma a 416x736, mas 722 MiB de base.
+# Normalizado por pixel eso son 9,39e-5 MiB por pixel-fotograma, y con esa
+# constante se puede resolver la pregunta al reves: dado un texto, cual es la
+# mayor resolucion 9:16 a la que su locucion entera cabe en UNA sola toma.
+#
+# Por que importa: el corte entre dos tomas del mismo plano no se puede hacer
+# invisible —ninguna toma llega al corte con la boca cerrada, porque el modelo
+# estira la locucion hasta llenar la toma— asi que la unica forma de que no se
+# note es que NO HAYA corte.
+MIB_BASE = 722.0
+MIB_POR_PXFRAME = 28.75 / (416 * 736)
+# Margen sobre la VRAM libre: la sonda midio con el escritorio ocupando 2,5 GB
+# y el consumo real varia unos cientos de MiB entre corridas.
+MIB_MARGEN = 400.0
+
+
+def frames_que_caben(ancho: int, alto: int, vram_libre_mib: float) -> int:
+    """Fotogramas 17k+5 que caben a esa resolucion con esa VRAM libre."""
+    disponible = vram_libre_mib - MIB_BASE - MIB_MARGEN
+    if disponible <= 0:
+        return FRAMES_MIN
+    crudo = int(disponible / (ancho * alto * MIB_POR_PXFRAME))
+    return max(FRAMES_MIN, ((crudo - 5) // 17) * 17 + 5)
+
+
+def formato_una_toma(
+    palabras_totales: int,
+    vram_libre_mib: float,
+    ancho_max: int = 416,
+    alto_max: int = 736,
+) -> tuple[int, int, int]:
+    """La mayor resolucion 9:16 a la que ESTE texto cabe en una sola toma.
+
+    Devuelve (fotogramas, ancho, alto). Si el texto es corto se queda en la
+    resolucion maxima y solo acorta la toma; si es largo, baja el tamaño lo
+    justo para no partir la pieza en dos.
+    """
+    segundos = palabras_totales / PALABRAS_POR_SEG + COLA_S
+    frames = ((int(round(segundos * FPS)) - 5) // 17 + 1) * 17 + 5
+    frames = max(FRAMES_MIN, frames)
+    disponible = vram_libre_mib - MIB_BASE - MIB_MARGEN
+    if disponible <= 0:
+        return FRAMES_MIN, ancho_max, alto_max
+    px = disponible / (frames * MIB_POR_PXFRAME)
+    if px >= ancho_max * alto_max:
+        return frames, ancho_max, alto_max
+    # 9:16, ambos lados multiplos de 16: sd-cli redondea por su cuenta si no.
+    alto = int((px * 16 / 9) ** 0.5 / 16) * 16
+    ancho = int(alto * 9 / 16 / 16) * 16
+    return frames, max(16, ancho), max(16, alto)
 # Aire despues de la ultima palabra: el remate de la frase, el gesto de cierre
 # y el fundido de audio de 0,25 s del montaje.
 COLA_S = 0.7
@@ -515,10 +589,10 @@ def frames_validos(minimo: int = FRAMES_MIN, maximo: int = FRAMES_MAX) -> list[i
     return [f for f in range(5, maximo + 1, 17) if f >= minimo]
 
 
-def frames_para(texto: str, fps: int = FPS) -> int:
+def frames_para(texto: str, fps: int = FPS, maximo: int = FRAMES_MAX) -> int:
     """Fotogramas que necesita este texto para decirse sin prisa ni sobras."""
     segundos = len(palabras(texto)) / PALABRAS_POR_SEG + COLA_S
-    escalera = frames_validos()
+    escalera = frames_validos(maximo=maximo)
     # El escalon mas cercano, no el siguiente: redondear siempre hacia arriba
     # devolvia el silencio por la puerta de atras.
     return min(escalera, key=lambda f: abs(f / fps - segundos))

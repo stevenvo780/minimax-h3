@@ -99,6 +99,39 @@ fechas = redaccion.acortar(
 if fechas and fechas.rstrip(".").endswith("30"):
     fallos.append(f"acortar() partio una enumeracion de cifras: {fechas}")
 
+# ── UNA TOMA: el texto elegido no puede depender de la duracion ────────────
+# La seleccion de frases es editorial; la duracion es de capacidad. Cuando se
+# acoplaron, una toma de 60 s dejaba pasar frases largas cuyas palabras nuevas
+# burlaban el filtro de repeticion: la pieza de Ceuta pasaba de 33 palabras a
+# 128 y decia dos veces lo de la juez.
+for fichero in fuentes:
+    titular, cuerpo, _ = noticias.leer_fichero(os.path.join(dia, fichero))
+    corta = redaccion.guionizar(titular, cuerpo, 8.0, 999, tomas_max=99)
+    larga = redaccion.guionizar(titular, cuerpo, 60.0, 999, tomas_max=1, una_toma=True)
+    if corta["palabras"] != larga["palabras"]:
+        fallos.append(
+            f"{fichero}: el texto cambia con la duracion "
+            f"({corta['palabras']} palabras en tomas de 8 s, "
+            f"{larga['palabras']} en una toma de 60 s)"
+        )
+    if len(larga["tomas"]) != 1:
+        fallos.append(f"{fichero}: --una-toma produjo {len(larga['tomas'])} tomas")
+
+# El formato de una toma tiene que caber en la VRAM que se le declara, y el
+# ritmo seguir siendo decible.
+for fichero in fuentes:
+    titular, cuerpo, _ = noticias.leer_fichero(os.path.join(dia, fichero))
+    plan = noticias.redactar(titular, cuerpo, una_toma=True, vram_libre_mib=13400)
+    f = plan["formato"]
+    coste = redaccion.MIB_BASE + f["frames"] * f["ancho"] * f["alto"] * redaccion.MIB_POR_PXFRAME
+    if coste > 13400:
+        fallos.append(f"{fichero}: el formato pide {coste:.0f} MiB de 13400")
+    if f["ancho"] % 16 or f["alto"] % 16:
+        fallos.append(f"{fichero}: {f['ancho']}x{f['alto']} no es multiplo de 16")
+    r = plan["ritmos"][0]
+    if not (redaccion.RITMO_MIN <= r <= redaccion.RITMO_MAX):
+        fallos.append(f"{fichero}: una toma a {r:.2f} pal/s, fuera de banda")
+
 for f in fallos:
     print("FALLA dialogo-noticias:", f)
 sys.exit(1 if fallos else 0)

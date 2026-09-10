@@ -66,6 +66,8 @@ def redactar(
     cuerpo: str,
     seg_max_toma: float = 8.0,
     seg_objetivo: float = 32.0,
+    una_toma: bool = False,
+    vram_libre_mib: float = 13400.0,
 ) -> dict:
     """Devuelve las TOMAS del reel, cada una con su duracion en fotogramas.
 
@@ -85,7 +87,29 @@ def redactar(
         raise SystemExit("la duracion de toma tiene que ser positiva")
 
     try:
-        plan = redaccion.guionizar(titular, cuerpo, seg_max_toma, seg_objetivo)
+        if una_toma:
+            # Primero se mide cuanto texto hay, sin techo de duracion; con eso
+            # se elige la mayor resolucion 9:16 a la que esa locucion entera
+            # cabe en UNA toma, y se compone contra esa duracion.
+            #
+            # El corte entre dos tomas del mismo plano no se puede hacer
+            # invisible: ninguna llega al corte con la boca cerrada porque el
+            # modelo estira la locucion hasta llenar la toma que se le pide.
+            # La unica forma de que no se note es que no haya corte.
+            tanteo = redaccion.guionizar(
+                titular, cuerpo, 60.0, 9999, tomas_max=1, una_toma=True
+            )
+            frames, ancho, alto = redaccion.formato_una_toma(
+                tanteo["palabras"], vram_libre_mib
+            )
+            segundos = frames / redaccion.FPS
+            plan = redaccion.guionizar(
+                titular, cuerpo, segundos, segundos, tomas_max=1,
+                frames_max=frames, una_toma=True,
+            )
+            plan["formato"] = {"ancho": ancho, "alto": alto, "frames": frames}
+        else:
+            plan = redaccion.guionizar(titular, cuerpo, seg_max_toma, seg_objetivo)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
@@ -233,6 +257,19 @@ def main() -> None:
         help="toma MAS LARGA que cabe en VRAM; cada toma dura lo que su texto",
     )
     ap.add_argument("--ritmo", help="tipos separados por comas; pisa la categoria")
+    ap.add_argument(
+        "--una-toma", action="store_true",
+        help="toda la noticia en UN plano continuo; elige la mayor resolucion "
+             "9:16 a la que su locucion entera cabe en la VRAM libre",
+    )
+    ap.add_argument(
+        "--vram-libre", type=float, default=13400.0,
+        help="MiB de VRAM libres; gobierna el tamaño en modo --una-toma",
+    )
+    ap.add_argument(
+        "--formato-salida",
+        help="fichero donde escribir ANCHO/ALTO/FRAMES para que lo lea el shell",
+    )
     ap.add_argument("--json", action="store_true", dest="como_json")
     a = ap.parse_args()
 
@@ -246,7 +283,15 @@ def main() -> None:
     else:
         sys.exit("hace falta --titular, --fichero o --rss")
 
-    recorte = redactar(titular, cuerpo, a.seg_por_toma, a.seg_objetivo)
+    recorte = redactar(
+        titular, cuerpo, a.seg_por_toma, a.seg_objetivo,
+        una_toma=a.una_toma, vram_libre_mib=a.vram_libre,
+    )
+    if a.formato_salida and recorte.get("formato"):
+        f = recorte["formato"]
+        with open(a.formato_salida, "w", encoding="utf-8") as fh:
+            fh.write("ANCHO=%d\nALTO=%d\nFRAMES=%d\n"
+                     % (f["ancho"], f["alto"], f["frames"]))
     recorte["fuente"] = fuente
     n = 0
     if a.guion:

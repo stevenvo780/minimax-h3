@@ -1,0 +1,7 @@
+ancho	alto	frames	segundos_video	cabe	vram_propia_mib	segundos_gen	motivo
+416	736	192	8.0	si	6232	242	
+416	736	243	10.1	si	7695	327	
+416	736	294	12.2	si	9166	424	
+416	736	345	14.4	si	10651	579	
+416	736	396	16.5	si	12114	741	
+416	736	447	18.6	no	12723	14	vram
