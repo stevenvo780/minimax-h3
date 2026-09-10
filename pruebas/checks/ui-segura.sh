@@ -75,6 +75,12 @@ reel.write_text(
 )
 reel.chmod(0o755)
 
+# El cerrojo de generacion, al arbol de pruebas. _obra_reservada() mira por
+# defecto /tmp/h3-generacion.lock, que es el cerrojo REAL de la maquina: con
+# una tanda generando de verdad, generando() devolvia True y el check fallaba
+# por el estado del equipo, no por el codigo. Para eso existe $CERROJO.
+os.environ["CERROJO"] = str(root / "h3-generacion.lock")
+
 ui.RAIZ = str(root)
 ui.GUIONES_DIR = str(scripts)
 ui.OBRAS_DIR = str(works)
