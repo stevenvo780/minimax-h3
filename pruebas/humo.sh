@@ -29,8 +29,14 @@ salta(){ echo "SALTA ($1)"; SALT=$((SALT+1)); }
 # humo declaraba "sin sd-cli" y SALTABA el bloque de generacion en la unica
 # maquina donde si se puede generar.
 HAY_SDCLI=0
+# La sonda tiene que correr DENTRO del entorno que prepara comun.sh: sd-cli se
+# enlaza contra libcudart.so.13, que compat.sh localiza y mete en
+# LD_LIBRARY_PATH. Capturando solo la ruta y ejecutando el binario fuera del
+# subshell se pierde esa variable, y el humo decia "sin CUDA en esta maquina"
+# en una maquina con la 5070 Ti delante y sd-cli funcionando.
 SDCLI_REAL=$(cd "$RAIZ" && bash -c '. lib/comun.sh 2>/dev/null; echo "$SDCLI"' 2>/dev/null)
-[ -n "$SDCLI_REAL" ] && "$SDCLI_REAL" --help >/dev/null 2>&1 && HAY_SDCLI=1
+(cd "$RAIZ" && bash -c '. lib/comun.sh 2>/dev/null; "$SDCLI" --help' >/dev/null 2>&1) \
+  && HAY_SDCLI=1
 HAY_FF=0;    command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 && HAY_FF=1
 HAY_GPU=0;   command -v nvidia-smi >/dev/null 2>&1 && [ -e /dev/nvidia0 ] && HAY_GPU=1
 
